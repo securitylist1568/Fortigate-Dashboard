@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-dark: #070b14;
+  --glass-bg: rgba(15, 23, 42, 0.72);
+  --glass-border: rgba(148, 163, 184, 0.16);
+  --accent-blue: #38bdf8;
+  --accent-indigo: #3b82f6;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-rose: #ef4444;
+}
+
+body {
+  background: radial-gradient(circle at 15% 15%, rgba(2, 132, 199, 0.16), transparent 40%),
+              radial-gradient(circle at 85% 20%, rgba(59, 130, 246, 0.14), transparent 42%),
+              radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.10), transparent 45%),
+              #070b14;
+  color: #f8fafc;
+  font-family: 'Segoe UI', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.glass-panel {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.65);
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.52);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 16px;
+  transition: all 0.22s ease;
+}
+
+.glass-card:hover {
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+/* Security Vault Modal (Okinawa 2026 Theme — Matching finance-free-xq-pub) */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.vault-dialog {
+  max-width: 470px;
+  width: 100%;
+  text-align: center;
+  padding: 32px 28px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid rgba(56, 189, 248, 0.38);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 35px rgba(2, 132, 199, 0.25);
+  border-radius: 24px;
+  animation: vaultPopIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes vaultPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.vault-glow-circle {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 14px auto;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.3), rgba(37, 99, 235, 0.2));
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.9rem;
+  box-shadow: 0 0 25px rgba(2, 132, 199, 0.4);
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  .glass-panel,
+  .glass-card {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
