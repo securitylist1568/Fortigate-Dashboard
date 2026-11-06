@@ -1,20 +1,23 @@
-import {
-  FEEDS_MANIFEST,
-  FeedCategory,
-  FeedKind,
-  GeneratorScriptId,
-  TOTAL_DAILY_CRON_RUNS,
-} from './feeds.manifest';
+import { FEEDS_MANIFEST, TOTAL_DAILY_CRON_RUNS } from './feeds.manifest';
 import { parseFeedContent } from './parsers';
 import {
   buildLongTermTrend,
-  DailyLongTermTrend,
   evaluatePipelineHealth,
   formatTaipeiTime,
+} from './trend';
+import type {
+  FeedCategory,
+  FeedKind,
+  GeneratorScriptId,
+  DailyLongTermTrend,
   GitHubCommitItem,
   LongTermTrendPoint,
   ScriptHealthStatus,
-} from './trend';
+  FeedSnapshotItem,
+  CategorySummary,
+  CapacityStatus,
+  DashboardSnapshot,
+} from './types';
 
 export type {
   FeedCategory,
@@ -24,93 +27,11 @@ export type {
   GitHubCommitItem,
   LongTermTrendPoint,
   ScriptHealthStatus,
+  FeedSnapshotItem,
+  CategorySummary,
+  CapacityStatus,
+  DashboardSnapshot,
 };
-
-export interface FeedSnapshotItem {
-  id: string;
-  displayName: string; // De-identified display name (no school/device/sensitive filename exposure)
-  category: FeedCategory;
-  categoryLabel: string;
-  kind: FeedKind;
-  generator: GeneratorScriptId;
-  generatorLabel: string;
-  cadenceLabel: string;
-  description: string;
-  isSensitiveInternal: boolean;
-  isBlocklist: boolean;
-  count: number;
-  bytes: number;
-  headerCount: number | null;
-  headerMismatch: boolean;
-  overlapWithLongTerm: number | null;
-}
-
-export interface CategorySummary {
-  category: FeedCategory;
-  label: string;
-  fileCount: number;
-  totalEntries: number;
-  totalBytes: number;
-}
-
-export interface CapacityStatus {
-  longTermCount: number;
-  longTermBytes: number;
-  singleListLimit: number;       // 131,072
-  singleListPct: number;
-  singleListAlertLevel: 'normal' | 'warning' | 'critical'; // >=70% warning, >=85% critical
-  fileSizeLimitBytes: number;    // 10 MB (10,485,760 bytes)
-  fileSizePct: number;
-  systemStandardLimit: number;   // 300,000
-  systemStandardPct: number;
-  systemMaxLimit: number;        // 5,000,000
-  systemMaxPct: number;
-  estimatedDaysTo100k: number | null;
-  estimatedDaysTo131k: number | null;
-  firstTtlExpiryDate: string;    // 2026-11-29 (30d from 2026-10-30)
-}
-
-export interface DashboardSnapshot {
-  headSha: string;
-  shortHeadSha: string;
-  headTimeIso: string;
-  headTimeDisplay: string;
-  fetchedAtIso: string;
-  fetchedAtDisplay: string;
-  isStaleFallback: boolean;
-  staleReason: string | null;
-
-  // Top-level Governance KPIs
-  totalCommitsCount: number;
-  dailyScheduledRuns: number;          // 440 runs/day
-  totalFeedsCount: number;             // Derived from FEEDS_MANIFEST.length
-  uniqueExternalBlockIPv4: number;     // Deduplicated union of external IPv4 blocklists
-  rawExternalBlockEntries: number;     // Sum of all external blocklist entries (IP + CIDR + FQDN)
-  protectedAndInternalEntries: number; // Sum of allowlist + internal micro-segmentation entries
-  internalMisblockCount: number;       // Verified count of internal/private IPs leaked into external IP blocklists (0)
-
-  // Pillar summaries
-  pillars: {
-    externalIntelCount: number;
-    campusTrafficCount: number;
-    emailAndFqdnCount: number;
-    microSegAndAllowCount: number;
-  };
-
-  categories: CategorySummary[];
-  feeds: FeedSnapshotItem[];
-  capacity: CapacityStatus;
-
-  longTermTrend: {
-    points: LongTermTrendPoint[];
-    daily: DailyLongTermTrend[];
-    last24hAdded: number;
-    last24hRemoved: number;
-    last24hCommits: number;
-  };
-
-  pipelineHealth: ScriptHealthStatus[];
-}
 
 // In-memory state for ETag conditional requests and stale-on-error fallback
 let cachedHeadEtag: string | null = null;

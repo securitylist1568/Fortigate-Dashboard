@@ -1,50 +1,19 @@
-import { SCRIPT_SCHEDULES, ScriptScheduleConfig } from './feeds.manifest';
+import { SCRIPT_SCHEDULES } from './feeds.manifest';
+import type {
+  ScriptScheduleConfig,
+  GitHubCommitItem,
+  LongTermTrendPoint,
+  DailyLongTermTrend,
+  ScriptHealthStatus,
+} from './types';
 
-export interface GitHubCommitItem {
-  sha: string;
-  commit: {
-    message: string;
-    committer?: { date?: string };
-    author?: { date?: string };
-  };
-}
-
-export interface LongTermTrendPoint {
-  sha: string;
-  shortSha: string;
-  timestampIso: string;
-  displayTime: string; // Asia/Taipei YYYY-MM-DD HH:mm
-  shortTime: string;   // MM/DD HH:mm
-  dateKey: string;     // YYYY-MM-DD (Asia/Taipei)
-  total: number;
-  added: number;
-  removed: number;
-  sourceType: 'global_or_batch' | 'traffic_incremental';
-}
-
-export interface DailyLongTermTrend {
-  date: string;        // YYYY-MM-DD
-  shortDate: string;   // MM/DD
-  closingTotal: number;
-  dailyAdded: number;
-  dailyRemoved: number;
-  commitCount: number;
-}
-
-export interface ScriptHealthStatus {
-  id: ScriptScheduleConfig['id'];
-  name: string;
-  version: string;
-  cronExpression: string;
-  runsPerDay: number;
-  warnThresholdMinutes: number;
-  lastCommitSha: string | null;
-  lastCommitTimeIso: string | null;
-  lastCommitDisplay: string | null;
-  minutesAgo: number | null;
-  status: 'healthy' | 'warning' | 'unknown';
-  note: string;
-}
+export type {
+  ScriptScheduleConfig,
+  GitHubCommitItem,
+  LongTermTrendPoint,
+  DailyLongTermTrend,
+  ScriptHealthStatus,
+};
 
 const LONGTERM_COMMIT_REGEX =
   /^feed\(longterm\s+v[\d.]+\):\s*update\s+g-BLACK_IP_AutoLongTerm-v1\.txt\s*\(total=(\d+)\s+added=(\d+)\s+removed=(\d+)\)/i;

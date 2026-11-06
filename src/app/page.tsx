@@ -5,7 +5,7 @@ import type {
   DashboardSnapshot,
   FeedCategory,
   LongTermTrendPoint,
-} from '@/lib/cti-fetcher';
+} from '@/lib/types';
 import type { EncryptedVaultPayload } from '@/lib/vault-crypto';
 
 const SESSION_STORAGE_KEY = 'cti_defense_vault_key';

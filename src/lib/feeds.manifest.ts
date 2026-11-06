@@ -1,44 +1,18 @@
-export type FeedCategory =
-  | 'ext_ip'      // 封鎖-外部威脅IP
-  | 'fqdn_mail'   // 封鎖-郵件/惡意網域
-  | 'internal'    // 內網微隔離 (不暴露連結與內容)
-  | 'allow';      // 白名單/服務資產清冊 (不暴露連結與內容)
+import type {
+  FeedCategory,
+  FeedKind,
+  GeneratorScriptId,
+  FeedDefinition,
+  ScriptScheduleConfig,
+} from './types';
 
-export type FeedKind = 'ip' | 'cidr' | 'fqdn' | 'mac' | 'html';
-
-export type GeneratorScriptId =
-  | 'longterm'
-  | 'topn'
-  | 'ntech'
-  | 'emailsys'
-  | 'manual';
-
-export interface FeedDefinition {
-  id: string;
-  file: string;                  // Used strictly on server for GitHub raw fetch
-  displayName: string;           // De-identified display name shown in UI
-  category: FeedCategory;
-  categoryLabel: string;
-  kind: FeedKind;
-  generator: GeneratorScriptId;
-  generatorLabel: string;
-  cadenceMinutes: number | null; // null = manual / static
-  cadenceLabel: string;
-  description: string;
-  isSensitiveInternal: boolean;  // true => hide raw links and only show aggregate count
-  isBlocklist: boolean;          // true => external blocklist indicator; false => asset/allowlist
-}
-
-export interface ScriptScheduleConfig {
-  id: Exclude<GeneratorScriptId, 'manual'>;
-  name: string;
-  version: string;
-  cronExpression: string;
-  runsPerDay: number;
-  intervalMinutes: number;
-  warnThresholdMinutes: number;
-  note: string;
-}
+export type {
+  FeedCategory,
+  FeedKind,
+  GeneratorScriptId,
+  FeedDefinition,
+  ScriptScheduleConfig,
+};
 
 export const SCRIPT_SCHEDULES: ScriptScheduleConfig[] = [
   {
