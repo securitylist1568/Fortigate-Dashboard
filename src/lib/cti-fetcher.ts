@@ -16,6 +16,16 @@ import {
   ScriptHealthStatus,
 } from './trend';
 
+export type {
+  FeedCategory,
+  FeedKind,
+  GeneratorScriptId,
+  DailyLongTermTrend,
+  GitHubCommitItem,
+  LongTermTrendPoint,
+  ScriptHealthStatus,
+};
+
 export interface FeedSnapshotItem {
   id: string;
   file: string;
@@ -527,3 +537,4 @@ export async function getDashboardSnapshot(
     throw err;
   }
 }
+
