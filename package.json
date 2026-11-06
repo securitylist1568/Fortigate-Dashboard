@@ -1,8 +1,8 @@
 {
-  "name": "ntnu-fortigate-dashboard",
+  "name": "cti-defense-dashboard",
   "version": "1.0.0",
   "private": true,
-  "description": "NTNU Fortigate-3001F Threat Intelligence Collaborative Defense Executive Dashboard (AES-256-GCM Security Vault)",
+  "description": "Cyber Threat Intelligence Collaborative Defense Executive Dashboard (AES-256-GCM Security Vault)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

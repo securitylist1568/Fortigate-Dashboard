@@ -8,7 +8,7 @@ import type {
 } from '@/lib/cti-fetcher';
 import type { EncryptedVaultPayload } from '@/lib/vault-crypto';
 
-const SESSION_STORAGE_KEY = 'ntnu_cti_vault_key';
+const SESSION_STORAGE_KEY = 'cti_defense_vault_key';
 
 function base64ToUint8Array(base64: string): Uint8Array {
   const binaryString = window.atob(base64);
@@ -208,13 +208,11 @@ export default function ExecutiveDashboardPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Filtered inventory
   const filteredFeeds =
     snapshot?.feeds.filter((f) =>
       selectedCategory === 'all' ? true : f.category === selectedCategory
     ) ?? [];
 
-  // Overall pipeline status badge
   const allHealthy =
     snapshot?.pipelineHealth.every((h) => h.status === 'healthy') ?? false;
 
@@ -226,12 +224,12 @@ export default function ExecutiveDashboardPage() {
           <div className="flex items-center gap-2">
             <span className="text-amber-400 font-bold">🛡️ 機敏治理聲明：</span>
             <span>
-              <strong>本頁呈現「防護名單規模（Feed Inventory Size）」，而非「防火牆實際攔截封包次數（Traffic Hits）」。</strong>
-              全量統計快照經伺服器端 <code>AES-256-GCM</code> 加密傳輸，且嚴格排除任何單一 IP / MAC / 內網資產明細。
+              <strong>本頁呈現「防護名單規模（Feed Inventory Size）」，而非「設備實際攔截封包次數（Traffic Hits）」。</strong>
+              全量統計快照經伺服器端 <code>AES-256-GCM</code> 加密傳輸，且嚴格排除任何組織識別、設備型號及單一 IP / MAC / 內網資產明細。
             </span>
           </div>
           <span className="font-mono text-sky-400">
-            FortiGate-3001F EDL Threat Intelligence Hub
+            CTI Collaborative Defense Executive Hub
           </span>
         </div>
       </aside>
@@ -255,17 +253,16 @@ export default function ExecutiveDashboardPage() {
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-5">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-semibold">
-                <span>🏛️ 呈 校長 暨 資訊安全監督管理單位 核閱</span>
+                <span>🏛️ 呈 決策主管 暨 資訊安全監督管理單位 核閱</span>
                 <span>•</span>
                 <span>資通安全情資協防專案報告 (v2.1 動態版)</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-sky-200 to-sky-400 bg-clip-text text-transparent">
-                國立臺灣師範大學 — 資訊安全情資協防暨自動化縱深防禦體系
+                資訊安全情資協防暨自動化縱深防禦體系 — 高階管理摘要報告
               </h1>
               <p className="text-xs sm:text-sm text-slate-400">
-                情資發布庫：<code>{snapshot?.repo ?? 'securitylist1568/Fortigate'}</code> ｜ 核心開發庫：
-                <code>securitylist1568/Fortigate-Dev</code> ｜ 邊界旗艦設備：
-                <strong className="text-slate-200">FortiGate-3001F</strong>
+                架構模式：<code>雙庫職責分離 GitOps 自動化管線</code> ｜ 防護載體：
+                <strong className="text-slate-200">次世代邊界防火牆動態威脅清單 (EDL Threat Feeds)</strong>
               </p>
             </div>
 
@@ -295,7 +292,7 @@ export default function ExecutiveDashboardPage() {
 
               <div className="glass-card px-3.5 py-2 flex flex-col items-start">
                 <span className="text-[11px] text-slate-400">
-                  GitHub 最新情資 Commit (Asia/Taipei)
+                  最新情資同步版本 (Asia/Taipei)
                 </span>
                 <span className="mt-0.5 text-xs font-mono font-bold text-slate-100">
                   {isUnlocked && snapshot
@@ -318,7 +315,7 @@ export default function ExecutiveDashboardPage() {
                   {isUnlocked
                     ? allHealthy
                       ? '🟢 4 支排程全數正常'
-                      : '🟡 部分腳本逾時警示'
+                      : '🟡 部分引擎逾時關注'
                     : '🔒 解鎖後顯示'}
                 </span>
               </div>
@@ -338,10 +335,10 @@ export default function ExecutiveDashboardPage() {
               </button>
             </div>
             <p>
-              為因應跨國殭屍網路、DDoS 阻斷服務攻擊、SSH 暴力破解與釣魚威脅，本校建置
-              <strong className="text-white">「資訊安全情資協防暨自動化縱深防禦體系」</strong>。系統透過標準化 Python 自動化引擎，將
-              <strong className="text-sky-300">「國際高信賴威脅情資 (AbuseIPDB)」、「國內學網與 CERT 聯防情資」、「校內骨幹流量即時偵測 (Ncloud)」與「郵件閘道威脅統計」</strong>
-              四方情資深度整合，自動轉化為邊界旗艦防火牆 <strong className="text-white">FortiGate-3001F</strong> 可即時讀取之動態封鎖清單（External Dynamic Lists）。
+              為因應跨國殭屍網路、DDoS 阻斷服務攻擊、SSH 暴力破解與釣魚威脅，本體系建置
+              <strong className="text-white">「資訊安全情資協防暨自動化縱深防禦機制」</strong>。系統透過標準化自動化引擎，將
+              <strong className="text-sky-300">「國際高信賴威脅情資 (AbuseIPDB)」、「國內聯防與 CERT 威脅情資」、「骨幹流量即時感知探針」與「郵件閘道威脅統計」</strong>
+              四方情資深度整合，自動轉化為邊界核心防火牆可即時讀取之動態封鎖清單（External Dynamic Lists）。
               {isUnlocked && snapshot ? (
                 <>
                   截至最新同步時間（<code>{snapshot.headTimeDisplay}</code>），全系統維運{' '}
@@ -371,9 +368,8 @@ export default function ExecutiveDashboardPage() {
             </p>
           </div>
 
-          {/* 5 Top-Level Governance KPIs (Strictly audited definitions) */}
+          {/* 5 Top-Level Governance KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-5">
-            {/* KPI 1 */}
             <div className="glass-card p-4 border-l-4 border-l-sky-400">
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>外部封鎖唯一 IPv4 (去重聯集)</span>
@@ -397,7 +393,6 @@ export default function ExecutiveDashboardPage() {
               </div>
             </div>
 
-            {/* KPI 2 */}
             <div className="glass-card p-4 border-l-4 border-l-indigo-400">
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>長期聯防黑名單 (TTL 30天)</span>
@@ -417,11 +412,10 @@ export default function ExecutiveDashboardPage() {
               <div className="text-[11px] text-slate-400 mt-1">
                 {isUnlocked && snapshot
                   ? `近24h 新增 +${snapshot.longTermTrend.last24hAdded.toLocaleString()} / 退場 -${snapshot.longTermTrend.last24hRemoved}`
-                  : 'AbuseIPDB ∪ 校內10天跨≥3日累犯'}
+                  : '全球高危情資 ∪ 10天跨≥3日累犯'}
               </div>
             </div>
 
-            {/* KPI 3 */}
             <div className="glass-card p-4 border-l-4 border-l-emerald-400">
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>受保護資產與內網微隔離</span>
@@ -445,7 +439,6 @@ export default function ExecutiveDashboardPage() {
               </div>
             </div>
 
-            {/* KPI 4 */}
             <div className="glass-card p-4 border-l-4 border-l-amber-400">
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>自動化排程巡檢頻率</span>
@@ -467,10 +460,9 @@ export default function ExecutiveDashboardPage() {
               </div>
             </div>
 
-            {/* KPI 5 */}
             <div className="glass-card p-4 border-l-4 border-l-purple-400">
               <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>Git 版本控管軌跡</span>
+                <span>GitOps 版本控管軌跡</span>
                 <button
                   type="button"
                   onClick={scrollToMethodology}
@@ -491,7 +483,7 @@ export default function ExecutiveDashboardPage() {
           </div>
         </header>
 
-        {/* Navigation Tabs (Okinawa Glowing Pills) */}
+        {/* Navigation Tabs */}
         <nav className="glass-panel p-2 flex flex-wrap items-center gap-2 no-print">
           {[
             { id: 'overview', icon: '🏛️', label: '四大支柱與管線健康度' },
@@ -528,7 +520,6 @@ export default function ExecutiveDashboardPage() {
         {/* ==================== TAB 1: OVERVIEW & PIPELINE HEALTH ==================== */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Pipeline Health Light Status Table */}
             <section className="glass-panel p-6 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -536,7 +527,7 @@ export default function ExecutiveDashboardPage() {
                     🚦 自動化情資管線健康度與資料時效監控（Pipeline Health &amp; Freshness）
                   </h2>
                   <p className="text-xs text-slate-400">
-                    即時解析各自動化排程腳本最後一次 Git Commit 距今時間（注意：LongTerm 腳本若當輪無新增/退場則跳過 Commit，故超過 9 小時才發警示）
+                    即時解析各自動化排程引擎最後一次同步距今時間（注意：長期黑名單引擎若當輪無新增/退場則跳過提交，故超過 9 小時才發警示）
                   </p>
                 </div>
                 <span className="text-xs font-mono text-slate-400">
@@ -549,7 +540,7 @@ export default function ExecutiveDashboardPage() {
                   <div key={h.id} className="glass-card p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-xs text-sky-300 font-bold">
-                        {h.name}
+                        {h.name} ({h.version})
                       </span>
                       <span
                         className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
@@ -586,7 +577,7 @@ export default function ExecutiveDashboardPage() {
                 ))}
                 {!isUnlocked && (
                   <div className="col-span-4 text-center py-8 text-slate-400 text-sm">
-                    🔒 解鎖安全金庫後即顯示 4 支自動化腳本之即時健康狀態與最後 Commit 時間
+                    🔒 解鎖安全金庫後即顯示 4 支自動化引擎之即時健康狀態與最後同步時間
                   </div>
                 )}
               </div>
@@ -599,7 +590,7 @@ export default function ExecutiveDashboardPage() {
                   🏛️ 壹、資訊安全情資協防「四大支柱」與縱深防禦架構
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  打破傳統「單點被動挨打」模式，透過跨國際、跨學網、跨校內設備之多源情資匯流，建立四層立體協防屏障
+                  打破傳統「單點被動挨打」模式，透過跨國際、跨聯防組織、跨內部流量探針之多源情資匯流，建立四層立體協防屏障
                 </p>
               </div>
 
@@ -607,7 +598,7 @@ export default function ExecutiveDashboardPage() {
                 <div className="glass-card p-5 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-sm text-white">
-                      🌐 支柱一：國際與學網外部情資協防（先發制人）
+                      🌐 支柱一：國際與外部聯防情資協防（先發制人）
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
                       {isUnlocked && snapshot
@@ -617,23 +608,23 @@ export default function ExecutiveDashboardPage() {
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
                     整合國際權威惡意 IP 資料庫 <strong>AbuseIPDB</strong>（嚴選全球高惡意信心度之活躍攻擊源）與{' '}
-                    <strong>CERT / Ntech 外部威脅情資</strong>。無須等待攻擊者觸碰本校網路，即可將全球正在肆虐之 DDoS 殭屍網路與掃描源預先列入 30 天封鎖清單。
+                    <strong>CERT 外部威脅情資</strong>。無須等待攻擊者觸碰內部網路，即可將全球正在肆虐之 DDoS 殭屍網路與掃描源預先列入 30 天封鎖清單。
                   </p>
                 </div>
 
                 <div className="glass-card p-5 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-sm text-white">
-                      ⚡ 支柱二：校內骨幹流量即時感知協防（快速止血）
+                      ⚡ 支柱二：骨幹流量即時感知協防（快速止血）
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                       {isUnlocked && snapshot
-                        ? `${snapshot.pillars.campusNcloudCount.toLocaleString()} 筆動態指標`
+                        ? `${snapshot.pillars.campusTrafficCount.toLocaleString()} 筆動態指標`
                         : '🔒 解鎖後顯示'}
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    每 10 分鐘自動分析校內 <strong>Ncloud 流量分析平台</strong> 6 大高危行為：外部未阻斷威脅 (Top-N)、對內 SSH 暴力入侵、木馬/IRC 中繼站連線、可疑遠端憑證與 DNS 反解異常。並將
+                    每 10 分鐘自動分析<strong>骨幹網路流量分析平台</strong> 6 大高危行為：外部未阻斷威脅 (Top-N)、對內 SSH 暴力入侵、木馬/IRC 中繼站連線、可疑遠端憑證與 DNS 反解異常。並將
                     <strong>「10 天內跨 3 個日曆日重複犯案」</strong>之持續性攻擊者自動晉升至 30 天長期黑名單。
                   </p>
                 </div>
@@ -650,8 +641,8 @@ export default function ExecutiveDashboardPage() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    每 10 分鐘萃取<strong>校內郵件系統異常寄件與暴力攻擊網段</strong>（CIDR 封鎖集），同步餵入防火牆層級直接阻斷；並維護釣魚、木馬 C2 與惡意 FQDN 網域黑名單，搭配校內專屬{' '}
-                    <strong>DNS 阻斷警示頁面</strong>，保護師生免受社交工程危害。
+                    每 10 分鐘萃取<strong>郵件閘道異常寄件與暴力攻擊網段</strong>（CIDR 封鎖集），同步餵入邊界防火牆層級直接阻斷；並維護釣魚、木馬 C2 與惡意 FQDN 網域黑名單，搭配專屬{' '}
+                    <strong>DNS 阻斷警示頁面</strong>，保護使用者免受社交工程危害。
                   </p>
                 </div>
 
@@ -667,7 +658,7 @@ export default function ExecutiveDashboardPage() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    針對校內高風險資產實施嚴格微隔離（限制 IoT 設備、網通/印表機設備及核心伺服器農場之非必要對外連線，並封鎖違規 MAC）；同時造冊保護校務/學術網站與關鍵白名單，確保學術研究與行政服務暢通。
+                    針對內部高風險資產實施嚴格微隔離（限制 IoT 設備、網通/印表機設備及核心伺服器群之非必要對外連線，並封鎖違規 MAC）；同時造冊保護重要對外資訊服務與關鍵白名單，確保業務與研究服務 100% 暢通。
                   </p>
                 </div>
               </div>
@@ -681,10 +672,10 @@ export default function ExecutiveDashboardPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold text-white">
-                  📈 貳、長期協防黑名單 (`g-BLACK_IP_AutoLongTerm-v1.txt`) 動態趨勢與近 24 小時異動
+                  📈 貳、長期協防黑名單 (`AutoLongTerm-Blocklist-v1`) 動態趨勢與近 24 小時異動
                 </h2>
                 <p className="text-xs text-slate-400">
-                  由 GitHub Commit 歷史 (`total= added= removed=`) 即時解析，無須逐筆暴露 IP 內容
+                  由版本控管歷史 (`total= added= removed=`) 即時解析，無須逐筆暴露 IP 內容
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -719,7 +710,6 @@ export default function ExecutiveDashboardPage() {
               </div>
             ) : (
               <>
-                {/* 24h Summary Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div className="glass-card p-4">
                     <div className="text-xs text-slate-400">目前長期黑名單總數</div>
@@ -751,7 +741,6 @@ export default function ExecutiveDashboardPage() {
                   </div>
                 </div>
 
-                {/* Selected Point Readout */}
                 {selectedPoint && (
                   <div className="glass-card px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
                     <div>
@@ -789,7 +778,6 @@ export default function ExecutiveDashboardPage() {
                   </div>
                 )}
 
-                {/* Dynamic SVG Chart */}
                 <div className="w-full overflow-x-auto glass-card p-4">
                   {(() => {
                     const pts = snapshot.longTermTrend.points;
@@ -871,7 +859,7 @@ export default function ExecutiveDashboardPage() {
                             chartMode === 'cumulative' ? p.total : p.added;
                           const y = padT + plotH - (val / maxVal) * plotH;
                           const color =
-                            p.sourceType === 'abuse_or_batch'
+                            p.sourceType === 'global_or_batch'
                               ? '#38bdf8'
                               : '#10b981';
 
@@ -923,7 +911,6 @@ export default function ExecutiveDashboardPage() {
                   })()}
                 </div>
 
-                {/* Daily Closing Table */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
@@ -963,7 +950,7 @@ export default function ExecutiveDashboardPage() {
           </section>
         )}
 
-        {/* ==================== TAB 3: FEED INVENTORY (NO RAW LINKS FOR INTERNAL ASSETS) ==================== */}
+        {/* ==================== TAB 3: FEED INVENTORY ==================== */}
         {activeTab === 'inventory' && (
           <section className="glass-panel p-6 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -972,7 +959,7 @@ export default function ExecutiveDashboardPage() {
                   📂 參、全庫資安情資與治理清單分類彙總表
                 </h2>
                 <p className="text-xs text-slate-400">
-                  依據資安審核規範：內網微隔離與校務白名單資產僅統計有效筆數，不提供原始清單下載連結或 IP 明細
+                  依據資安去識別化規範：所有清單均以標準化功能名稱呈現，內網微隔離與白名單資產僅統計有效筆數，不提供原始下載連結或明細
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -981,7 +968,7 @@ export default function ExecutiveDashboardPage() {
                   { id: 'ext_ip', label: '🔴 外部威脅 IP' },
                   { id: 'fqdn_mail', label: '📧 郵件與惡意網域' },
                   { id: 'internal', label: '🖥️ 內網設備微隔離' },
-                  { id: 'allow', label: '✅ 白名單與校務保護' },
+                  { id: 'allow', label: '✅ 白名單與服務保護' },
                 ].map((btn) => (
                   <button
                     key={btn.id}
@@ -1007,7 +994,6 @@ export default function ExecutiveDashboardPage() {
               </div>
             ) : (
               <>
-                {/* 4 Category Summary Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {snapshot.categories.map((cat) => (
                     <div key={cat.category} className="glass-card p-4 space-y-1">
@@ -1027,17 +1013,16 @@ export default function ExecutiveDashboardPage() {
                   ))}
                 </div>
 
-                {/* Feed Table */}
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="border-b border-slate-700 bg-slate-900/60 text-slate-300">
                         <th className="p-3">防護類別</th>
-                        <th className="p-3">清單識別名稱</th>
+                        <th className="p-3">清單功能識別名稱</th>
                         <th className="p-3 text-right">現行有效筆數</th>
-                        <th className="p-3 text-right">與 LongTerm 重疊數</th>
-                        <th className="p-3 text-right">檔案大小</th>
-                        <th className="p-3">更新頻率 / 負責引擎</th>
+                        <th className="p-3 text-right">與長期清單重疊數</th>
+                        <th className="p-3 text-right">資料量大小</th>
+                        <th className="p-3">更新頻率</th>
                         <th className="p-3">協防角色說明</th>
                       </tr>
                     </thead>
@@ -1051,11 +1036,11 @@ export default function ExecutiveDashboardPage() {
                           </td>
                           <td className="p-3 font-mono text-white">
                             {f.isSensitiveInternal ? (
-                              <span title="內網/保護資產清冊不公開原始檔案連結">
-                                🔒 {f.file}
+                              <span title="內部/保護資產清冊僅顯示去識別化統計">
+                                🔒 {f.displayName}
                               </span>
                             ) : (
-                              <span>{f.file}</span>
+                              <span>{f.displayName}</span>
                             )}
                             {f.headerMismatch && (
                               <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]">
@@ -1091,13 +1076,12 @@ export default function ExecutiveDashboardPage() {
         {/* ==================== TAB 4: CAPACITY WATERMARK & ISO 27001:2022 ==================== */}
         {activeTab === 'compliance' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Capacity Watermark Card */}
             <section className="glass-panel p-6 space-y-4">
               <h2 className="text-lg font-bold text-white">
-                📊 肆、FortiGate-3001F 容量水位監控與預警線（Capacity Watermarks）
+                📊 肆、邊界防護設備容量水位監控與預警線（Capacity Watermarks）
               </h2>
               <p className="text-xs text-slate-400">
-                針對 FortiOS 單一外部清單 131,072 筆上限設置 70%（黃燈預警）與 85%（紅燈警戒）水位線
+                針對單一外部動態清單 131,072 筆標準上限設置 70%（黃燈預警）與 85%（紅燈警戒）水位線
               </p>
 
               {!isUnlocked || !snapshot ? (
@@ -1106,27 +1090,26 @@ export default function ExecutiveDashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4 pt-2">
-                  {/* Bar 1: FortiOS 7.2 131,072 Limit */}
                   <div>
                     <div className="flex justify-between text-xs mb-1.5">
                       <span className="text-slate-200 font-semibold">
-                        1. FortiOS 7.2 單一清單筆數上限 (LongTerm{' '}
+                        1. 單一動態清單標準筆數上限 (LongTerm{' '}
                         {snapshot.capacity.longTermCount.toLocaleString()} /{' '}
-                        {snapshot.capacity.fortiOs72Limit.toLocaleString()} 筆)
+                        {snapshot.capacity.singleListLimit.toLocaleString()} 筆)
                       </span>
                       <span
                         className={`font-bold ${
-                          snapshot.capacity.fortiOs72AlertLevel === 'critical'
+                          snapshot.capacity.singleListAlertLevel === 'critical'
                             ? 'text-rose-400'
-                            : snapshot.capacity.fortiOs72AlertLevel === 'warning'
+                            : snapshot.capacity.singleListAlertLevel === 'warning'
                             ? 'text-amber-300'
                             : 'text-emerald-400'
                         }`}
                       >
-                        {snapshot.capacity.fortiOs72Pct}% (
-                        {snapshot.capacity.fortiOs72AlertLevel === 'critical'
+                        {snapshot.capacity.singleListPct}% (
+                        {snapshot.capacity.singleListAlertLevel === 'critical'
                           ? '🔴 超過 85% 警戒線'
-                          : snapshot.capacity.fortiOs72AlertLevel === 'warning'
+                          : snapshot.capacity.singleListAlertLevel === 'warning'
                           ? '🟡 超過 70% 預警線'
                           : '🟢 安全水位 <70%'}
                         )
@@ -1136,11 +1119,11 @@ export default function ExecutiveDashboardPage() {
                       <div
                         className="h-full rounded-full transition-all"
                         style={{
-                          width: `${Math.min(100, snapshot.capacity.fortiOs72Pct)}%`,
+                          width: `${Math.min(100, snapshot.capacity.singleListPct)}%`,
                           background:
-                            snapshot.capacity.fortiOs72AlertLevel === 'critical'
+                            snapshot.capacity.singleListAlertLevel === 'critical'
                               ? '#ef4444'
-                              : snapshot.capacity.fortiOs72AlertLevel === 'warning'
+                              : snapshot.capacity.singleListAlertLevel === 'warning'
                               ? '#f59e0b'
                               : '#38bdf8',
                         }}
@@ -1165,7 +1148,6 @@ export default function ExecutiveDashboardPage() {
                     </div>
                   </div>
 
-                  {/* Bar 2: Single File Size Limit (10 MB) */}
                   <div>
                     <div className="flex justify-between text-xs mb-1.5">
                       <span className="text-slate-200 font-semibold">
@@ -1186,11 +1168,10 @@ export default function ExecutiveDashboardPage() {
                     </div>
                   </div>
 
-                  {/* Bar 3: FortiOS 7.4 Total 300k */}
                   <div>
                     <div className="flex justify-between text-xs mb-1.5">
                       <span className="text-slate-200 font-semibold">
-                        3. FortiOS 7.4 全機總指標容量 (
+                        3. 全系統總指標標準容量 (
                         {(
                           snapshot.rawExternalBlockEntries +
                           snapshot.protectedAndInternalEntries
@@ -1198,7 +1179,7 @@ export default function ExecutiveDashboardPage() {
                         / 300,000 筆)
                       </span>
                       <span className="font-bold text-sky-400">
-                        {snapshot.capacity.fortiOs74TotalPct}%
+                        {snapshot.capacity.systemStandardPct}%
                       </span>
                     </div>
                     <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
@@ -1207,7 +1188,7 @@ export default function ExecutiveDashboardPage() {
                         style={{
                           width: `${Math.min(
                             100,
-                            snapshot.capacity.fortiOs74TotalPct
+                            snapshot.capacity.systemStandardPct
                           )}%`,
                         }}
                       />
@@ -1219,15 +1200,14 @@ export default function ExecutiveDashboardPage() {
                       📌 容量治理建議（Operational Advisory）
                     </div>
                     <p className="leading-relaxed">
-                      由於 <code>g-BLACK_IP_AutoLongTerm-v1.txt</code> 於 2026-10-30 啟用 30 天 TTL，在{' '}
-                      <strong>2026-11-29 首批過期退場前</strong>屬「只進不出」累積期。若防火牆韌體為 FortiOS 7.2 以前版本（單檔上限 131,072 筆），當水位突破 70%（約 91,750 筆）時，可採取：(1) 將 TTL 由 30 天調降為 21 天，或 (2) 拆分為兩份 EDL 清單掛載。
+                      由於長期協防黑名單於 2026-10-30 啟用 30 天 TTL，在{' '}
+                      <strong>2026-11-29 首批過期退場前</strong>屬「只進不出」累積期。當單一清單水位突破 70%（約 91,750 筆）時，可採取：(1) 將 TTL 由 30 天調降為 21 天，或 (2) 拆分為兩份動態清單分流掛載。
                     </p>
                   </div>
                 </div>
               )}
             </section>
 
-            {/* ISO/IEC 27001:2022 & Cyber Security Management Act Matrix */}
             <section className="glass-panel p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-white">
@@ -1238,7 +1218,7 @@ export default function ExecutiveDashboardPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                對應《資通安全管理法》、教育部資安稽核重點與 ISO/IEC 27001:2022 最新版控制項（編號供稽核對照參考，交由資安官確認後定稿）
+                對應《資通安全管理法》、主管機關資安稽核重點與 ISO/IEC 27001:2022 最新版控制項（編號供稽核對照參考，交由資安官確認後定稿）
               </p>
 
               <div className="space-y-3 text-xs">
@@ -1247,7 +1227,7 @@ export default function ExecutiveDashboardPage() {
                     1. ISO/IEC 27001:2022 A.5.7 — 威脅情資（Threat Intelligence）
                   </div>
                   <p className="text-slate-300 leading-relaxed">
-                    自動匯集國際 AbuseIPDB 高信賴黑名單、國內 CERT 聯防情資與校內 Ncloud 骨幹流量探針，建立跨層級情資收集、正規化清洗與自動化阻斷機制。
+                    自動匯集國際 AbuseIPDB 高信賴黑名單、國內 CERT 聯防情資與內部骨幹流量探針，建立跨層級情資收集、正規化清洗與自動化阻斷機制。
                   </p>
                 </div>
 
@@ -1256,7 +1236,7 @@ export default function ExecutiveDashboardPage() {
                     2. ISO/IEC 27001:2022 A.8.20 — 網路安全（Networks Security）
                   </div>
                   <p className="text-slate-300 leading-relaxed">
-                    透過 FortiGate-3001F External Dynamic List (EDL) 實施邊界動態隔離與校內 IoT / 網通設備 / 伺服器農場微隔離控管。
+                    透過邊界防火牆動態威脅清單 (EDL) 實施邊界動態隔離與內部 IoT / 網通設備 / 伺服器群微隔離控管。
                   </p>
                 </div>
 
@@ -1265,7 +1245,7 @@ export default function ExecutiveDashboardPage() {
                     3. ISO/IEC 27001:2022 A.8.23 — 網頁過濾（Web Filtering）
                   </div>
                   <p className="text-slate-300 leading-relaxed">
-                    維護 <code>DNS-FQDN-Blocklist-v6.txt</code> 與 <code>ntech_blocklist_fqdn.txt</code> 惡意網域黑名單，阻絕釣魚網站與木馬 C2 連線。
+                    維護惡意網域黑名單（支援萬用字元與掃描器反解紀錄），阻絕釣魚網站與木馬 C2 連線。
                   </p>
                 </div>
 
@@ -1274,7 +1254,7 @@ export default function ExecutiveDashboardPage() {
                     4. ISO/IEC 27001:2022 A.8.32 — 變更管理（Change Management）
                   </div>
                   <p className="text-slate-300 leading-relaxed">
-                    雙儲存庫職責分離（<code>Fortigate-Dev</code> 管程式碼與單元測試、<code>Fortigate</code> 管情資發布），每次清單異動均留存 Git 版本控管軌跡，並具備白名單防誤封與暴跌保護機制。
+                    採用開發庫與發布庫職責分離架構，每次清單異動均留存 Git 版本控管軌跡，並具備白名單防誤封與異常暴跌保護機制。
                   </p>
                 </div>
               </div>
@@ -1290,7 +1270,7 @@ export default function ExecutiveDashboardPage() {
                 📘 陸、方法論、指標公式與資料來源透明化聲明（Methodology &amp; Audit Notes）
               </h2>
               <p className="text-xs text-slate-400">
-                供校長、資安長及教育部稽核委員核對各項統計數字之計算邏輯與邊界限制
+                供決策主管、資安官及稽核委員核對各項統計數字之計算邏輯與邊界限制
               </p>
             </div>
 
@@ -1300,8 +1280,8 @@ export default function ExecutiveDashboardPage() {
                   1. 「名單規模」與「實際攔截次數」之嚴格區分
                 </h3>
                 <p className="text-slate-300 leading-relaxed">
-                  本前臺同步自 GitHub <code>securitylist1568/Fortigate</code> 發布庫，所呈現之數字皆為
-                  <strong>「生效中之防護規則／指標筆數（Active Indicators in EDL）」</strong>，而非 FortiGate 防火牆硬體之「封包攔截命中次數（Firewall Traffic Hits）」。實際封包攔截統計須由 FortiAnalyzer 日誌平台另行產出月報。
+                  本前臺同步自自動化情資發布庫，所呈現之數字皆為
+                  <strong>「生效中之防護規則／指標筆數（Active Indicators in EDL）」</strong>，而非邊界防火牆硬體之「封包攔截命中次數（Firewall Traffic Hits）」。實際封包攔截統計由日誌分析平台另行產出月報。
                 </p>
               </div>
 
@@ -1310,7 +1290,7 @@ export default function ExecutiveDashboardPage() {
                   2. 外部封鎖唯一 IPv4（Unique External Block IPv4）計算公式
                 </h3>
                 <p className="text-slate-300 leading-relaxed">
-                  由於 <code>ncloud_block_src_topn.txt</code> 等短期快篩清單與 <code>g-BLACK_IP_AutoLongTerm-v1.txt</code> 長期黑名單之間存在部分重疊，本系統於伺服器端將 10 份「外部威脅 IP」清單載入記憶體執行 <code>Set</code> 去重聯集（Union），並將<strong>白名單與內網資產清冊完全排除於封鎖指標之外</strong>，確保絕不灌水重複計算。
+                  由於當日短期快篩清單與 30 天長期黑名單之間存在部分重疊，本系統於伺服器端將 10 份「外部威脅 IP」清單載入記憶體執行 <code>Set</code> 去重聯集（Union），並將<strong>白名單與內部資產清冊完全排除於封鎖指標之外</strong>，確保絕不灌水重複計算。
                 </p>
               </div>
 
@@ -1319,12 +1299,12 @@ export default function ExecutiveDashboardPage() {
                   3. 每日自動化排程巡檢次數（440 次/日）推導依據
                 </h3>
                 <p className="text-slate-300 leading-relaxed">
-                  依據 Kali Linux Crontab 實機排程設定：
-                  <br />• <code>EmailSys_fortigate_block_v2_1.py</code>：每 10 分鐘執行 1 次 = <strong>144 次/日</strong>
-                  <br />• <code>ncloud_fortigate_ntech_block_v2_1.py</code>：每 10 分鐘執行 1 次 = <strong>144 次/日</strong>
-                  <br />• <code>ncloud_topn_feed_push_v4_5.py</code>：每 10 分鐘執行 1 次 = <strong>144 次/日</strong>
-                  <br />• <code>ncloud_longterm_block_v1_0.py</code>：每 3 小時執行 1 次 = <strong>8 次/日</strong>
-                  <br />合計每日自動巡檢 <code>144 × 3 + 8 = 440</code> 次（僅在清單內容有實質異動時才會產生 Git Commit）。
+                  依據自動化排程實機設定：
+                  <br />• <code>郵件閘道威脅封鎖引擎 (v2.1)</code>：每 10 分鐘執行 1 次 = <strong>144 次/日</strong>
+                  <br />• <code>外部聯防情資同步引擎 (v2.1)</code>：每 10 分鐘執行 1 次 = <strong>144 次/日</strong>
+                  <br />• <code>骨幹流量即時感知引擎 (v4.5)</code>：每 10 分鐘執行 1 次 = <strong>144 次/日</strong>
+                  <br />• <code>長期累犯與全球黑名單引擎 (v1.0.1)</code>：每 3 小時執行 1 次 = <strong>8 次/日</strong>
+                  <br />合計每日自動巡檢 <code>144 × 3 + 8 = 440</code> 次（僅在清單內容有實質異動時才會產生版本提交）。
                 </p>
               </div>
 
@@ -1333,7 +1313,7 @@ export default function ExecutiveDashboardPage() {
                   4. 內網網段誤入外部黑名單數（Internal Leak Verification）
                 </h3>
                 <p className="text-slate-300 leading-relaxed">
-                  為取代無法直接由 Repo 量測的「誤封率 %」，本前臺於每次快照解析時，自動掃描全部 10 份外部 IP 封鎖清單是否含有本校校園網段（<code>140.122.0.0/16</code>）或私網（RFC 1918）IP。實測結果為 <strong>0 筆</strong>，提供百分之百可驗證之防誤封佐證。
+                  為取代無法直接由情資庫量測的「誤封率 %」，本前臺於每次快照解析時，自動掃描全部 10 份外部 IP 封鎖清單是否含有受保護內部網段或私網（RFC 1918）IP。實測結果為 <strong>0 筆</strong>，提供百分之百可驗證之防誤封佐證。
                 </p>
               </div>
             </div>
@@ -1343,22 +1323,22 @@ export default function ExecutiveDashboardPage() {
         {/* Footer */}
         <footer className="pt-6 border-t border-slate-800/80 text-center text-xs text-slate-500 space-y-1">
           <div>
-            © 2026 <strong>國立臺灣師範大學 資訊中心 / 資通安全情資協防專案</strong> ·
+            © 2026 <strong>資通安全情資協防暨自動化縱深防禦專案</strong> ·
             Powered by Next.js &amp; AES-256-GCM Zero-Knowledge Security Vault
           </div>
           <div>
-            本系統對 <code>Fortigate</code> 與 <code>Fortigate-Dev</code> 採純唯讀架構（Zero-Write），不干擾既有 Kali Linux 自動化排程運作。
+            本系統對上游情資發布庫採純唯讀架構（Zero-Write），並已執行組織與設備去識別化保護。
           </div>
         </footer>
       </main>
 
-      {/* ==================== SECURITY VAULT UNLOCK MODAL (Matching finance-free-xq-pub.vercel.app) ==================== */}
+      {/* ==================== SECURITY VAULT UNLOCK MODAL ==================== */}
       {showVaultModal && (
         <div className="modal-backdrop no-print">
           <div className="vault-dialog">
             <div className="vault-glow-circle">🔐</div>
             <div className="inline-block px-3 py-0.5 rounded-full bg-sky-500/20 border border-sky-400/30 text-sky-300 text-[11px] font-bold tracking-wider mb-2">
-              NTNU CTI AES-256-GCM SECURITY VAULT
+              CTI DEFENSE AES-256-GCM SECURITY VAULT
             </div>
             <h2 className="text-xl font-extrabold text-white mb-2">
               資安情資協防金庫 · 安全解鎖
@@ -1366,7 +1346,7 @@ export default function ExecutiveDashboardPage() {
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-5">
               本高階主管報告全量數據採用金融級{' '}
               <strong className="text-slate-200">AES-256-GCM 密文加密</strong>。<br />
-              公開程式碼庫未儲存任何明文統計或金鑰，請輸入通行密鑰或點擊專屬授權連結解鎖。
+              公開伺服器未儲存任何明文統計或金鑰，請輸入通行密鑰或點擊專屬授權連結解鎖。
             </p>
 
             {serverError && (
@@ -1417,10 +1397,9 @@ export default function ExecutiveDashboardPage() {
               </span>
             </button>
 
-            {/* Visitor Application Divider (Matching finance-free-xq-pub) */}
             <div className="flex items-center my-4 text-slate-500 text-xs">
               <div className="flex-1 border-b border-slate-800" />
-              <span className="px-3">長官與督導權限申請</span>
+              <span className="px-3">檢視權限申請</span>
               <div className="flex-1 border-b border-slate-800" />
             </div>
 
@@ -1466,7 +1445,7 @@ export default function ExecutiveDashboardPage() {
           <div className="vault-dialog text-left">
             <div className="flex items-center justify-between mb-3">
               <span className="px-2.5 py-0.5 rounded-full bg-[#06c755] text-white text-[11px] font-bold">
-                NTNU CTI ACCESS REQUEST
+                CTI VAULT ACCESS REQUEST
               </span>
               <button
                 type="button"
@@ -1480,7 +1459,7 @@ export default function ExecutiveDashboardPage() {
               📲 資安情資協防報告 · 檢視密鑰申請
             </h3>
             <p className="text-xs text-slate-400 mb-4">
-              本系統專供校內長官、資安督導單位與授權管理人員檢閱。請透過以下方式聯繫管理員取得通行密鑰或 1-Click 解密連結：
+              本系統專供授權決策主管、資安督導單位與維運管理人員檢閱。請透過以下方式聯繫管理員取得通行密鑰或 1-Click 解密連結：
             </p>
 
             <div className="space-y-2.5 text-xs text-slate-300 mb-4">
@@ -1489,7 +1468,7 @@ export default function ExecutiveDashboardPage() {
                   步驟 1：聯繫資安情資維運窗口
                 </div>
                 <div className="text-slate-400">
-                  可透過 LINE 官方帳號（<code>@208jinte</code>）或電子郵件提交申請。
+                  可透過 LINE 官方帳號（<code>@208jinte</code>）提交申請。
                 </div>
               </div>
               <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
@@ -1497,7 +1476,7 @@ export default function ExecutiveDashboardPage() {
                   步驟 2：註明單位與用途
                 </div>
                 <div className="text-slate-400">
-                  傳送：<code>【申請 NTNU 資安情資報告密鑰】姓名 / 單位與職稱</code>。
+                  傳送：<code>【申請資安情資報告密鑰】姓名 / 單位與用途</code>。
                 </div>
               </div>
               <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">

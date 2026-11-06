@@ -5,21 +5,21 @@ export interface ParsedFeedStats {
   bytes: number;
   headerCount: number | null;
   headerMismatch: boolean;
-  internalLeakCount: number; // Count of 140.122.x.x or RFC1918 in external blocklists
+  internalLeakCount: number; // Count of internal/private IPs leaked into external blocklists
   entriesSet: Set<string>;   // Used strictly in-memory on server for deduplication, never serialized!
 }
 
 const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
 
 /**
- * Checks whether an IPv4 string belongs to NTNU campus (140.122.0.0/16) or private/loopback ranges
- * to verify that external blocklists have zero internal campus mis-blocks.
+ * Checks whether an IPv4 string belongs to internal protected /16 subnet or RFC1918 private/loopback ranges
+ * to verify that external blocklists have zero internal mis-blocks.
  */
 export function isCampusOrPrivateIPv4(ip: string): boolean {
   if (!IPV4_REGEX.test(ip)) return false;
   const parts = ip.split('.').map(Number);
   const [a, b] = parts;
-  if (a === 140 && b === 122) return true; // NTNU campus network 140.122.0.0/16
+  if (a === 140 && b === 122) return true;
   if (a === 10 || a === 127 || a === 0) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
   if (a === 192 && b === 168) return true;
@@ -70,7 +70,7 @@ export function parseFeedContent(
       continue;
     }
 
-    // Strip inline comments or trailing descriptions (e.g. `140.122.66.124 # http://...`)
+    // Strip inline comments or trailing descriptions
     const token = trimmed.split(/\s+#|\s+/)[0].trim();
     if (!token) continue;
 

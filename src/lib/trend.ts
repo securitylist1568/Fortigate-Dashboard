@@ -19,7 +19,7 @@ export interface LongTermTrendPoint {
   total: number;
   added: number;
   removed: number;
-  sourceType: 'abuse_or_batch' | 'ncloud_incremental';
+  sourceType: 'global_or_batch' | 'traffic_incremental';
 }
 
 export interface DailyLongTermTrend {
@@ -46,8 +46,6 @@ export interface ScriptHealthStatus {
   note: string;
 }
 
-// Accepts both `feed(longterm v1.0)` and `feed(longterm v1.0.1)` (or future v1.x.x)
-// Strictly ignores non-data commits like `fix:`, `feat:`, `docs:`, etc.
 const LONGTERM_COMMIT_REGEX =
   /^feed\(longterm\s+v[\d.]+\):\s*update\s+g-BLACK_IP_AutoLongTerm-v1\.txt\s*\(total=(\d+)\s+added=(\d+)\s+removed=(\d+)\)/i;
 
@@ -58,9 +56,6 @@ const SCRIPT_PREFIX_REGEX: Record<ScriptScheduleConfig['id'], RegExp> = {
   emailsys: /^feed\(emailsys\s+v[\d.]+\):/i,
 };
 
-/**
- * Formats an ISO timestamp string into Asia/Taipei `YYYY-MM-DD HH:mm` and `MM/DD HH:mm`.
- */
 export function formatTaipeiTime(isoString: string): {
   displayTime: string;
   shortTime: string;
@@ -70,7 +65,6 @@ export function formatTaipeiTime(isoString: string): {
   if (Number.isNaN(d.getTime())) {
     return { displayTime: isoString, shortTime: isoString, dateKey: 'unknown' };
   }
-  // Convert to UTC+8 (Asia/Taipei has no DST)
   const taipeiMs = d.getTime() + 8 * 3600 * 1000;
   const td = new Date(taipeiMs);
   const yyyy = td.getUTCFullYear();
@@ -86,9 +80,6 @@ export function formatTaipeiTime(isoString: string): {
   };
 }
 
-/**
- * Parses a single LongTerm commit title. Returns null if it is not a data feed commit.
- */
 export function parseLongTermCommitTitle(message: string): {
   total: number;
   added: number;
@@ -104,9 +95,6 @@ export function parseLongTermCommitTitle(message: string): {
   };
 }
 
-/**
- * Extracts chronological LongTerm trend points, daily summaries, and 24-hour added/removed totals.
- */
 export function buildLongTermTrend(
   commits: GitHubCommitItem[],
   nowMs: number = Date.now()
@@ -140,17 +128,15 @@ export function buildLongTermTrend(
       total: parsed.total,
       added: parsed.added,
       removed: parsed.removed,
-      sourceType: parsed.added >= 100 ? 'abuse_or_batch' : 'ncloud_incremental',
+      sourceType: parsed.added >= 100 ? 'global_or_batch' : 'traffic_incremental',
     });
   }
 
-  // Sort ascending by time
   parsedPoints.sort(
     (a, b) =>
       new Date(a.timestampIso).getTime() - new Date(b.timestampIso).getTime()
   );
 
-  // Compute last 24h metrics
   const cutoff24h = nowMs - 24 * 3600 * 1000;
   let last24hAdded = 0;
   let last24hRemoved = 0;
@@ -165,7 +151,6 @@ export function buildLongTermTrend(
     }
   }
 
-  // Group by Asia/Taipei dateKey
   const byDate = new Map<string, DailyLongTermTrend>();
   for (const pt of parsedPoints) {
     const existing = byDate.get(pt.dateKey);
@@ -195,9 +180,6 @@ export function buildLongTermTrend(
   };
 }
 
-/**
- * Evaluates pipeline health across the 4 scheduled scripts based on recent commit history.
- */
 export function evaluatePipelineHealth(
   recentCommits: GitHubCommitItem[],
   nowMs: number = Date.now()

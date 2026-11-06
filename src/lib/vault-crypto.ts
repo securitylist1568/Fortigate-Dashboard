@@ -79,3 +79,4 @@ export function decryptSnapshotPayloadNode<T = unknown>(
 
   return JSON.parse(decrypted.toString('utf8')) as T;
 }
+

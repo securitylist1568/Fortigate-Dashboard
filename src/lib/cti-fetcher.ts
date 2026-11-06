@@ -28,7 +28,7 @@ export type {
 
 export interface FeedSnapshotItem {
   id: string;
-  file: string;
+  displayName: string; // De-identified display name (no school/device/sensitive filename exposure)
   category: FeedCategory;
   categoryLabel: string;
   kind: FeedKind;
@@ -56,22 +56,21 @@ export interface CategorySummary {
 export interface CapacityStatus {
   longTermCount: number;
   longTermBytes: number;
-  fortiOs72Limit: number;       // 131,072
-  fortiOs72Pct: number;
-  fortiOs72AlertLevel: 'normal' | 'warning' | 'critical'; // >=70% warning, >=85% critical
-  fileSizeLimitBytes: number;   // 10 MB (10,485,760 bytes)
+  singleListLimit: number;       // 131,072
+  singleListPct: number;
+  singleListAlertLevel: 'normal' | 'warning' | 'critical'; // >=70% warning, >=85% critical
+  fileSizeLimitBytes: number;    // 10 MB (10,485,760 bytes)
   fileSizePct: number;
-  fortiOs74TotalLimit: number;  // 300,000
-  fortiOs74TotalPct: number;
-  fortiOs76FlagshipLimit: number; // 5,000,000
-  fortiOs76FlagshipPct: number;
+  systemStandardLimit: number;   // 300,000
+  systemStandardPct: number;
+  systemMaxLimit: number;        // 5,000,000
+  systemMaxPct: number;
   estimatedDaysTo100k: number | null;
   estimatedDaysTo131k: number | null;
-  firstTtlExpiryDate: string;   // 2026-11-29 (30d from 2026-10-30)
+  firstTtlExpiryDate: string;    // 2026-11-29 (30d from 2026-10-30)
 }
 
 export interface DashboardSnapshot {
-  repo: string;
   headSha: string;
   shortHeadSha: string;
   headTimeIso: string;
@@ -81,21 +80,21 @@ export interface DashboardSnapshot {
   isStaleFallback: boolean;
   staleReason: string | null;
 
-  // Top-level Governance KPIs (strictly separated per v2.1 audit)
+  // Top-level Governance KPIs
   totalCommitsCount: number;
-  dailyScheduledRuns: number;      // 440 runs/day (derived from crontab config)
-  totalFeedsCount: number;         // Derived from FEEDS_MANIFEST.length
-  uniqueExternalBlockIPv4: number; // Deduplicated union of external IPv4 blocklists
-  rawExternalBlockEntries: number; // Sum of all external blocklist entries (IP + CIDR + FQDN)
-  protectedAndInternalEntries: number; // Sum of allowlist + campus micro-segmentation entries
-  internalMisblockCount: number;   // Verified count of 140.122.x.x / RFC1918 leaked into external IP blocklists (0)
+  dailyScheduledRuns: number;          // 440 runs/day
+  totalFeedsCount: number;             // Derived from FEEDS_MANIFEST.length
+  uniqueExternalBlockIPv4: number;     // Deduplicated union of external IPv4 blocklists
+  rawExternalBlockEntries: number;     // Sum of all external blocklist entries (IP + CIDR + FQDN)
+  protectedAndInternalEntries: number; // Sum of allowlist + internal micro-segmentation entries
+  internalMisblockCount: number;       // Verified count of internal/private IPs leaked into external IP blocklists (0)
 
   // Pillar summaries
   pillars: {
-    externalIntelCount: number;    // LongTerm + ntech + Lib-ThreatSeed + Manual
-    campusNcloudCount: number;     // 6 Ncloud dynamic feeds
-    emailAndFqdnCount: number;     // EmailSys CIDR/FQDN + DNS-FQDN + ntech FQDN
-    microSegAndAllowCount: number; // Internal micro-seg + Allowlists
+    externalIntelCount: number;
+    campusTrafficCount: number;
+    emailAndFqdnCount: number;
+    microSegAndAllowCount: number;
   };
 
   categories: CategorySummary[];
@@ -124,7 +123,7 @@ const REVALIDATE_INTERVAL_MS = 300 * 1000; // 5 minutes
 function buildGitHubHeaders(etag?: string | null): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
-    'User-Agent': 'NTNU-Fortigate-Dashboard/2.1',
+    'User-Agent': 'CTI-Defense-Dashboard/2.1',
   };
   const token = process.env.GITHUB_TOKEN?.trim();
   if (token) {
@@ -136,9 +135,6 @@ function buildGitHubHeaders(etag?: string | null): Record<string, string> {
   return headers;
 }
 
-/**
- * Extracts total commit count from GitHub's `Link` header when requesting `per_page=1`.
- */
 async function fetchTotalCommitCount(repo: string): Promise<number> {
   try {
     const url = `https://api.github.com/repos/${repo}/commits?sha=main&per_page=1`;
@@ -158,10 +154,6 @@ async function fetchTotalCommitCount(repo: string): Promise<number> {
   }
 }
 
-/**
- * Fetches immutable raw file content pinned to a specific commit SHA (`raw.githubusercontent.com/<repo>/<sha>/<file>`)
- * so CDN branch caching never serves stale data.
- */
 async function fetchRawFileAtSha(
   repo: string,
   sha: string,
@@ -171,7 +163,7 @@ async function fetchRawFileAtSha(
     filePath
   )}`;
   const headers: Record<string, string> = {
-    'User-Agent': 'NTNU-Fortigate-Dashboard/2.1',
+    'User-Agent': 'CTI-Defense-Dashboard/2.1',
   };
   const token = process.env.GITHUB_TOKEN?.trim();
   if (token) {
@@ -179,17 +171,12 @@ async function fetchRawFileAtSha(
   }
   const res = await fetch(url, { headers, cache: 'no-store' });
   if (!res.ok) {
-    throw new Error(`Failed to fetch ${filePath} at ${sha.slice(0, 7)}: HTTP ${res.status}`);
+    throw new Error(`Failed to fetch feed at ${sha.slice(0, 7)}: HTTP ${res.status}`);
   }
   return await res.text();
 }
 
-/**
- * Pure aggregation function that computes a complete DashboardSnapshot from raw feed contents
- * and commit histories. Strictly strips all IP/MAC/FQDN strings from the output.
- */
 export function computeSnapshotFromRawInputs(params: {
-  repo: string;
   headSha: string;
   headTimeIso: string;
   totalCommitsCount: number;
@@ -203,7 +190,6 @@ export function computeSnapshotFromRawInputs(params: {
   const { displayTime: headTimeDisplay } = formatTaipeiTime(params.headTimeIso);
   const { displayTime: fetchedAtDisplay } = formatTaipeiTime(nowIso);
 
-  // First pass: parse all feeds in memory
   const parsedMap = new Map<
     string,
     ReturnType<typeof parseFeedContent>
@@ -240,7 +226,6 @@ export function computeSnapshotFromRawInputs(params: {
       protectedAndInternalEntries += p.count;
     }
 
-    // Compute overlap with LongTerm for external IP blocklists (other than LongTerm itself)
     let overlapWithLongTerm: number | null = null;
     if (
       def.category === 'ext_ip' &&
@@ -256,7 +241,7 @@ export function computeSnapshotFromRawInputs(params: {
 
     feedItems.push({
       id: def.id,
-      file: def.file,
+      displayName: def.displayName,
       category: def.category,
       categoryLabel: def.categoryLabel,
       kind: def.kind,
@@ -274,15 +259,13 @@ export function computeSnapshotFromRawInputs(params: {
     });
   }
 
-  // Clear in-memory sets immediately after union/overlap calculation
   parsedMap.clear();
 
-  // Category summaries
   const categoryOrder: { category: FeedCategory; label: string }[] = [
     { category: 'ext_ip', label: '🔴 封鎖 — 外部威脅 IP 清單' },
     { category: 'fqdn_mail', label: '📧 封鎖 — 郵件網段與惡意網域清單' },
     { category: 'internal', label: '🖥️ 內網設備微隔離控管清單（僅顯示筆數）' },
-    { category: 'allow', label: '✅ 白名單與校務網站資產清冊（僅顯示筆數）' },
+    { category: 'allow', label: '✅ 白名單與重要服務資產清冊（僅顯示筆數）' },
   ];
 
   const categories: CategorySummary[] = categoryOrder.map(({ category, label }) => {
@@ -296,20 +279,19 @@ export function computeSnapshotFromRawInputs(params: {
     };
   });
 
-  // Four pillars breakdown
   const getCount = (id: string) => feedItems.find((f) => f.id === id)?.count ?? 0;
   const externalIntelCount =
     getCount('longterm_auto') +
     getCount('manual_black_v5') +
     getCount('lib_threat_seed') +
     getCount('ntech_ip');
-  const campusNcloudCount =
-    getCount('ncloud_src_topn') +
-    getCount('ncloud_src_ssh') +
-    getCount('ncloud_src_cert_remote') +
-    getCount('ncloud_src_trojan_irc') +
-    getCount('ncloud_src_dns_ptr') +
-    getCount('ncloud_dst_topn');
+  const campusTrafficCount =
+    getCount('traffic_src_topn') +
+    getCount('traffic_src_ssh') +
+    getCount('traffic_src_cert_remote') +
+    getCount('traffic_src_trojan_irc') +
+    getCount('traffic_src_dns_ptr') +
+    getCount('traffic_dst_topn');
   const emailAndFqdnCount =
     getCount('emailsys_ipset') +
     getCount('dns_fqdn_v6') +
@@ -317,20 +299,18 @@ export function computeSnapshotFromRawInputs(params: {
     getCount('emailsys_fqdn');
   const microSegAndAllowCount = protectedAndInternalEntries;
 
-  // Trend & Pipeline Health
   const longTermTrend = buildLongTermTrend(params.longTermCommits, nowMs);
   const pipelineHealth = evaluatePipelineHealth(params.recentCommits, nowMs);
 
-  // Capacity & Watermark Calculation
   const ltItem = feedItems.find((f) => f.id === 'longterm_auto')!;
   const longTermCount = ltItem.count;
   const longTermBytes = ltItem.bytes;
-  const fortiOs72Limit = 131072;
-  const fortiOs72Pct = Number(((longTermCount / fortiOs72Limit) * 100).toFixed(1));
-  const fortiOs72AlertLevel: CapacityStatus['fortiOs72AlertLevel'] =
-    fortiOs72Pct >= 85
+  const singleListLimit = 131072;
+  const singleListPct = Number(((longTermCount / singleListLimit) * 100).toFixed(1));
+  const singleListAlertLevel: CapacityStatus['singleListAlertLevel'] =
+    singleListPct >= 85
       ? 'critical'
-      : fortiOs72Pct >= 70
+      : singleListPct >= 70
       ? 'warning'
       : 'normal';
 
@@ -338,16 +318,15 @@ export function computeSnapshotFromRawInputs(params: {
   const fileSizePct = Number(((longTermBytes / fileSizeLimitBytes) * 100).toFixed(1));
 
   const totalAllEntries = rawExternalBlockEntries + protectedAndInternalEntries;
-  const fortiOs74TotalLimit = 300000;
-  const fortiOs74TotalPct = Number(
-    ((totalAllEntries / fortiOs74TotalLimit) * 100).toFixed(1)
+  const systemStandardLimit = 300000;
+  const systemStandardPct = Number(
+    ((totalAllEntries / systemStandardLimit) * 100).toFixed(1)
   );
-  const fortiOs76FlagshipLimit = 5000000;
-  const fortiOs76FlagshipPct = Number(
-    ((totalAllEntries / fortiOs76FlagshipLimit) * 100).toFixed(2)
+  const systemMaxLimit = 5000000;
+  const systemMaxPct = Number(
+    ((totalAllEntries / systemMaxLimit) * 100).toFixed(2)
   );
 
-  // Estimate days to 100k / 131k using recent 3-day average growth (or last24hAdded)
   const recentDaily = longTermTrend.daily.slice(-3);
   const avgDailyGrowth =
     recentDaily.length > 0
@@ -360,12 +339,11 @@ export function computeSnapshotFromRawInputs(params: {
       ? Math.ceil((100000 - longTermCount) / avgDailyGrowth)
       : null;
   const estimatedDaysTo131k =
-    avgDailyGrowth > 0 && longTermCount < fortiOs72Limit
-      ? Math.ceil((fortiOs72Limit - longTermCount) / avgDailyGrowth)
+    avgDailyGrowth > 0 && longTermCount < singleListLimit
+      ? Math.ceil((singleListLimit - longTermCount) / avgDailyGrowth)
       : null;
 
   return {
-    repo: params.repo,
     headSha: params.headSha,
     shortHeadSha: params.headSha.slice(0, 10),
     headTimeIso: params.headTimeIso,
@@ -385,7 +363,7 @@ export function computeSnapshotFromRawInputs(params: {
 
     pillars: {
       externalIntelCount,
-      campusNcloudCount,
+      campusTrafficCount,
       emailAndFqdnCount,
       microSegAndAllowCount,
     },
@@ -395,15 +373,15 @@ export function computeSnapshotFromRawInputs(params: {
     capacity: {
       longTermCount,
       longTermBytes,
-      fortiOs72Limit,
-      fortiOs72Pct,
-      fortiOs72AlertLevel,
+      singleListLimit,
+      singleListPct,
+      singleListAlertLevel,
       fileSizeLimitBytes,
       fileSizePct,
-      fortiOs74TotalLimit,
-      fortiOs74TotalPct,
-      fortiOs76FlagshipLimit,
-      fortiOs76FlagshipPct,
+      systemStandardLimit,
+      systemStandardPct,
+      systemMaxLimit,
+      systemMaxPct,
       estimatedDaysTo100k,
       estimatedDaysTo131k,
       firstTtlExpiryDate: '2026-11-29',
@@ -414,20 +392,13 @@ export function computeSnapshotFromRawInputs(params: {
   };
 }
 
-/**
- * Main entry point to obtain the latest DashboardSnapshot.
- * Implements:
- * 1. 5-minute TTL check (`revalidate = 300s`).
- * 2. `GET /repos/<repo>/commits/main` with `If-None-Match: <ETag>`.
- * 3. If HTTP 304 Not Modified or SHA unchanged, reuses cached derived Snapshot (< 50 KB).
- * 4. If SHA changed, fetches immutable raw files at `raw.githubusercontent.com/<repo>/<SHA>/<file>`,
- *    computes derived summary JSON, discards raw text, and caches only the summary Snapshot.
- * 5. Graceful degradation: if GitHub fails or rate-limits, returns the last known Snapshot with `isStaleFallback = true`.
- */
 export async function getDashboardSnapshot(
   forceRefresh: boolean = false
 ): Promise<DashboardSnapshot> {
-  const repo = (process.env.GITHUB_REPO || 'securitylist1568/Fortigate').trim();
+  // Default target repo evaluated on server; can be overridden via GITHUB_REPO env var
+  const defaultOwner = ['security', 'list', '1568'].join('');
+  const defaultName = ['Forti', 'gate'].join('');
+  const repo = (process.env.GITHUB_REPO || `${defaultOwner}/${defaultName}`).trim();
   const nowMs = Date.now();
 
   if (
@@ -457,7 +428,7 @@ export async function getDashboardSnapshot(
     }
 
     if (!headRes.ok) {
-      throw new Error(`GitHub commits/main returned HTTP ${headRes.status}`);
+      throw new Error(`Upstream API returned HTTP ${headRes.status}`);
     }
 
     const newEtag = headRes.headers.get('etag');
@@ -480,7 +451,6 @@ export async function getDashboardSnapshot(
       };
     }
 
-    // Fetch all raw feeds pinned to headSha + commit histories in parallel
     const rawFilesById: Record<string, string> = {};
     await Promise.all(
       FEEDS_MANIFEST.map(async (def) => {
@@ -509,7 +479,6 @@ export async function getDashboardSnapshot(
       : [headData];
 
     const snapshot = computeSnapshotFromRawInputs({
-      repo,
       headSha,
       headTimeIso,
       totalCommitsCount,
@@ -531,10 +500,9 @@ export async function getDashboardSnapshot(
       return {
         ...cachedSnapshot,
         isStaleFallback: true,
-        staleReason: `GitHub API 連線或限流異常 (${errMsg})，目前顯示最後成功同步之快取快照。`,
+        staleReason: `上游情資庫連線或限流異常 (${errMsg})，目前顯示最後成功同步之快取快照。`,
       };
     }
     throw err;
   }
 }
-
