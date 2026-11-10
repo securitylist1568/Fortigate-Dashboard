@@ -50,6 +50,12 @@ interface IndexedCidrEntry extends ParsedCidrRange {
   comment: string | null;
 }
 
+interface HistoricalIpSighting {
+  lastSeenSha: string;
+  lastSeenDisplay: string;
+  lineNumber: number;
+}
+
 interface FeedIpIndex {
   id: string;
   fileName: string;
@@ -68,14 +74,29 @@ interface FeedIpIndex {
   macEntries: Map<string, EntryMetaInfo>;
 }
 
-// In-memory state for ETag conditional requests, IP lookup index, and stale-on-error fallback
+// In-memory state for ETag conditional requests, IP lookup index, historical 10-day index, and stale-on-error fallback
 let cachedHeadEtag: string | null = null;
 let cachedHeadSha: string | null = null;
 let cachedSnapshot: DashboardSnapshot | null = null;
 let cachedIpLookupIndex: Map<string, FeedIpIndex> | null = null;
+let cachedHistoricalFeedIndex: Map<string, Map<string, HistoricalIpSighting>> | null = null;
+let lastHistoricalBuildMs = 0;
 let lastSuccessfulFetchMs = 0;
 
 const REVALIDATE_INTERVAL_MS = 300 * 1000; // 5 minutes
+const HISTORICAL_REBUILD_INTERVAL_MS = 1800 * 1000; // 30 minutes
+const HISTORICAL_DYNAMIC_FEED_IDS = [
+  'traffic_src_topn',
+  'traffic_src_ssh',
+  'traffic_src_cert_remote',
+  'traffic_src_trojan_irc',
+  'traffic_src_dns_ptr',
+  'traffic_dst_topn',
+  'ntech_ip',
+  'emailsys_ipset',
+  'emailsys_fqdn',
+  'ntech_fqdn',
+];
 
 function buildGitHubHeaders(etag?: string | null): Record<string, string> {
   const headers: Record<string, string> = {
@@ -653,10 +674,122 @@ function checkFeedMatch(
   return null;
 }
 
+async function ensureHistoricalDynamicIndex(): Promise<
+  Map<string, Map<string, HistoricalIpSighting>>
+> {
+  const nowMs = Date.now();
+  if (
+    cachedHistoricalFeedIndex &&
+    nowMs - lastHistoricalBuildMs < HISTORICAL_REBUILD_INTERVAL_MS
+  ) {
+    return cachedHistoricalFeedIndex;
+  }
+
+  const defaultOwner = ['security', 'list', '1568'].join('');
+  const defaultName = ['Forti', 'gate'].join('');
+  const repo = (process.env.GITHUB_REPO || `${defaultOwner}/${defaultName}`).trim();
+
+  const histMap = new Map<string, Map<string, HistoricalIpSighting>>();
+  for (const id of HISTORICAL_DYNAMIC_FEED_IDS) {
+    histMap.set(id, new Map<string, HistoricalIpSighting>());
+  }
+
+  try {
+    // Sample end-of-day commits over the past 10 days (at ~23:59 Asia/Taipei = 15:59 UTC)
+    const dayPromises = Array.from({ length: 10 }, (_, idx) => idx + 1).map(
+      async (daysAgo) => {
+        const targetMs = nowMs - daysAgo * 24 * 3600 * 1000;
+        const { dateKey } = formatTaipeiTime(new Date(targetMs).toISOString());
+        const untilIso = `${dateKey}T23:59:59+08:00`;
+        const url = `https://api.github.com/repos/${repo}/commits?sha=main&until=${encodeURIComponent(
+          untilIso
+        )}&per_page=1`;
+        const res = await fetch(url, {
+          headers: buildGitHubHeaders(),
+          cache: 'no-store',
+        });
+        if (!res.ok) return null;
+        const arr = (await res.json()) as GitHubCommitItem[];
+        if (!arr || arr.length === 0) return null;
+        const commit = arr[0];
+        const commitTimeIso =
+          commit.commit?.committer?.date ||
+          commit.commit?.author?.date ||
+          untilIso;
+        const { displayTime } = formatTaipeiTime(commitTimeIso);
+        return {
+          sha: commit.sha,
+          shortSha: commit.sha.slice(0, 8),
+          displayTime: `${dateKey} (${displayTime.slice(11, 16)})`,
+        };
+      }
+    );
+
+    const daySnapshots = (await Promise.all(dayPromises)).filter(
+      (x): x is { sha: string; shortSha: string; displayTime: string } =>
+        x !== null
+    );
+
+    // Deduplicate SHAs while keeping most recent first
+    const uniqueShas: { sha: string; shortSha: string; displayTime: string }[] = [];
+    const seenSha = new Set<string>();
+    for (const s of daySnapshots) {
+      if (!seenSha.has(s.sha)) {
+        seenSha.add(s.sha);
+        uniqueShas.push(s);
+      }
+    }
+
+    await Promise.all(
+      uniqueShas.map(async (snap) => {
+        await Promise.all(
+          HISTORICAL_DYNAMIC_FEED_IDS.map(async (feedId) => {
+            const def = FEEDS_MANIFEST.find((f) => f.id === feedId);
+            if (!def) return;
+            try {
+              const raw = await fetchRawFileAtSha(repo, snap.sha, def.file);
+              const parsed = parseFeedContent(raw, def.kind, false);
+              const targetFeedMap = histMap.get(feedId)!;
+              for (const entry of parsed.entriesSet) {
+                const key =
+                  def.kind === 'fqdn'
+                    ? entry.toLowerCase()
+                    : entry.endsWith('/32')
+                    ? entry.slice(0, -3)
+                    : entry;
+                if (!targetFeedMap.has(key)) {
+                  const meta = parsed.entryMetaMap.get(entry);
+                  targetFeedMap.set(key, {
+                    lastSeenSha: snap.shortSha,
+                    lastSeenDisplay: snap.displayTime,
+                    lineNumber: meta?.lineNumber ?? 0,
+                  });
+                }
+              }
+            } catch {
+              // Ignore single historical file fetch error
+            }
+          })
+        );
+      })
+    );
+
+    cachedHistoricalFeedIndex = histMap;
+    lastHistoricalBuildMs = nowMs;
+  } catch {
+    // Fallback to empty map on error without failing current HEAD lookup
+  }
+
+  return cachedHistoricalFeedIndex ?? histMap;
+}
+
 export async function queryIpsAgainstFeeds(
   rawQueries: string[]
 ): Promise<IpQueryResponsePayload> {
-  const snapshot = await getDashboardSnapshot(false);
+  const [snapshot, historicalIndexMap] = await Promise.all([
+    getDashboardSnapshot(false),
+    ensureHistoricalDynamicIndex(),
+  ]);
   const indexMap = cachedIpLookupIndex ?? new Map<string, FeedIpIndex>();
 
   const cleanedTokens = Array.from(
@@ -669,6 +802,7 @@ export async function queryIpsAgainstFeeds(
 
   const results: IpQueryResultItem[] = [];
   let blockedCount = 0;
+  let historicalBlockedCount = 0;
   let inAllowlistCount = 0;
   let cleanCount = 0;
 
@@ -692,10 +826,11 @@ export async function queryIpsAgainstFeeds(
         isAllowlisted: false,
         isExcludedFromLongTerm: false,
         blockMatches: [],
+        historicalBlockMatches: [],
         allowMatches: [],
         matches: [],
         advisory:
-          '請輸入有效的 IPv4 位址（如 176.123.1.163 或 140.122.251.74）、FQDN 網域（如 granestichs.top）或 MAC 位址。',
+          '請輸入有效的 IPv4 位址（如 104.16.102.112、176.123.1.163 或 140.122.251.74）、FQDN 網域（如 granestichs.top）或 MAC 位址。',
       });
       continue;
     }
@@ -705,7 +840,9 @@ export async function queryIpsAgainstFeeds(
     const effectiveBareIp = isCidrInput ? rawToken.split('/')[0] : bareIp;
 
     const blockMatches: IpQueryFeedMatch[] = [];
+    const historicalBlockMatches: IpQueryFeedMatch[] = [];
     const allowMatches: IpQueryFeedMatch[] = [];
+    const matchedHeadFeedIds = new Set<string>();
 
     for (const [, feedIdx] of indexMap.entries()) {
       const m = checkFeedMatch(
@@ -715,6 +852,7 @@ export async function queryIpsAgainstFeeds(
         effectiveIpInt
       );
       if (m) {
+        matchedHeadFeedIds.add(feedIdx.id);
         const matchObj: IpQueryFeedMatch = {
           feedId: feedIdx.id,
           fileName: feedIdx.fileName,
@@ -730,6 +868,7 @@ export async function queryIpsAgainstFeeds(
           lineNumber: m.lineNumber,
           commentNote: m.commentNote,
           retentionPolicy: getRetentionPolicyByFeed(feedIdx),
+          isHistoricalOnly: false,
         };
         if (feedIdx.isBlocklist) {
           blockMatches.push(matchObj);
@@ -739,17 +878,65 @@ export async function queryIpsAgainstFeeds(
       }
     }
 
+    // Check 10-day historical dynamic blocklists for feeds not currently matched in HEAD
+    const cleanedHostKey = rawToken
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .replace(/\/.*$/, '');
+
+    for (const [histFeedId, sightingMap] of historicalIndexMap.entries()) {
+      if (matchedHeadFeedIds.has(histFeedId)) continue;
+      const feedIdx = indexMap.get(histFeedId);
+      if (!feedIdx) continue;
+
+      const lookupKey =
+        feedIdx.kind === 'fqdn' ? cleanedHostKey : effectiveBareIp;
+      const sighting = sightingMap.get(lookupKey);
+      if (sighting) {
+        historicalBlockMatches.push({
+          feedId: feedIdx.id,
+          fileName: feedIdx.fileName,
+          displayName: feedIdx.fileName,
+          category: feedIdx.category,
+          categoryLabel: feedIdx.categoryLabel,
+          isBlocklist: true,
+          generatorLabel: feedIdx.generatorLabel,
+          cadenceLabel: feedIdx.cadenceLabel,
+          description: feedIdx.description,
+          matchType: 'historical_ip',
+          matchedRule: lookupKey,
+          lineNumber: sighting.lineNumber || null,
+          commentNote: `曾於 ${sighting.lastSeenDisplay} (Commit ${sighting.lastSeenSha}) 列入此動態清單，目前已於每日 00:00 歸零或滾動更新中退場`,
+          retentionPolicy: getRetentionPolicyByFeed(feedIdx),
+          isHistoricalOnly: true,
+          lastSeenDisplay: sighting.lastSeenDisplay,
+          lastSeenSha: sighting.lastSeenSha,
+        });
+      }
+    }
+
     const isAllowlisted = allowMatches.some(
       (m) => m.feedId === 'allow_global_infra'
     );
     const isExcludedFromLongTerm = allowMatches.some(
       (m) => m.feedId === 'allow_longterm_exclude'
     );
-    const allMatches = [...blockMatches, ...allowMatches];
+    const allMatches = [
+      ...blockMatches,
+      ...historicalBlockMatches,
+      ...allowMatches,
+    ];
 
     if (blockMatches.length > 0) {
       blockedCount += 1;
       const blockedFileNames = blockMatches.map((m) => m.fileName).join('、');
+      const histNote =
+        historicalBlockMatches.length > 0
+          ? `；另於近 10 日歷史曾出現在【${historicalBlockMatches
+              .map((m) => `${m.fileName} (${m.lastSeenDisplay})`)
+              .join('、')}】`
+          : '';
       const allowNote =
         allowMatches.length > 0
           ? `（同時亦列於非封鎖名單：${allowMatches
@@ -761,13 +948,39 @@ export async function queryIpsAgainstFeeds(
         query: rawToken,
         isValidIp: effectiveIpInt !== null,
         status: 'blocked',
-        statusLabel: `🔴 在封鎖清單內（命中 ${blockMatches.length} 份名單：${blockedFileNames}）`,
+        statusLabel: `🔴 現行封鎖中（命中 ${blockMatches.length} 份名單：${blockedFileNames}）`,
         isAllowlisted,
         isExcludedFromLongTerm,
         blockMatches,
+        historicalBlockMatches,
         allowMatches,
         matches: allMatches,
-        advisory: `此目標目前落在封鎖/管制清單【${blockedFileNames}】內${allowNote}。請參閱下方表格檢視所在檔案行號、備註與退場機制。`,
+        advisory: `此目標於最新同步版本 (${snapshot.shortHeadSha}) 落在封鎖清單【${blockedFileNames}】內${histNote}${allowNote}。`,
+      });
+    } else if (historicalBlockMatches.length > 0) {
+      historicalBlockedCount += 1;
+      const histFileNames = historicalBlockMatches
+        .map((m) => `${m.fileName}`)
+        .join('、');
+      const allowNote =
+        allowMatches.length > 0
+          ? `；目前位於非封鎖名單【${allowMatches
+              .map((m) => m.fileName)
+              .join('、')}】`
+          : '';
+
+      results.push({
+        query: rawToken,
+        isValidIp: effectiveIpInt !== null,
+        status: 'historical_blocked',
+        statusLabel: `🟠 近期曾落在動態封鎖清單（${histFileNames}，目前已於當日歸零更新退場）`,
+        isAllowlisted,
+        isExcludedFromLongTerm,
+        blockMatches: [],
+        historicalBlockMatches,
+        allowMatches,
+        matches: allMatches,
+        advisory: `此目標在近 10 日內曾落在【${histFileNames}】封鎖清單內（若您檢視的本機檔案尚未 git pull，仍會看到此 IP），但因 ncloud_topn_feed_push_v4_5.py 每日 00:00 自動歸零重算，在最新遠端 HEAD (${snapshot.shortHeadSha}) 已退場未封鎖${allowNote}。`,
       });
     } else if (allowMatches.length > 0) {
       inAllowlistCount += 1;
@@ -782,6 +995,7 @@ export async function queryIpsAgainstFeeds(
         isAllowlisted,
         isExcludedFromLongTerm,
         blockMatches: [],
+        historicalBlockMatches: [],
         allowMatches,
         matches: allMatches,
         advisory: `此目標不在任何封鎖清單內，且明確登錄於【${allowFileNames}】名單中。`,
@@ -792,14 +1006,15 @@ export async function queryIpsAgainstFeeds(
         query: rawToken,
         isValidIp: effectiveIpInt !== null,
         status: 'not_in_any_list',
-        statusLabel: '⚪ 不在封鎖清單內（未出現於 Fortigate 全庫 25 份 *.txt 名單）',
+        statusLabel: '⚪ 不在封鎖清單內（未出現於現行 25 份 *.txt 及近 10 日動態清單）',
         isAllowlisted: false,
         isExcludedFromLongTerm: false,
         blockMatches: [],
+        historicalBlockMatches: [],
         allowMatches: [],
         matches: [],
         advisory:
-          '經比對 Fortigate 儲存庫內全部 25 份清單檔案（含外部黑名單、郵件 CIDR/FQDN、內部設備封鎖及網站/白名單清冊），均未包含此項目。',
+          '經比對 Fortigate 儲存庫最新 HEAD 全部 25 份清單檔案及近 10 日動態滾動清單歷史，均未包含此項目。',
       });
     }
   }
@@ -815,9 +1030,11 @@ export async function queryIpsAgainstFeeds(
     queriedAtDisplay,
     totalQueried: results.length,
     blockedCount,
+    historicalBlockedCount,
     inAllowlistCount,
     cleanCount,
     scannedFilesCount: indexMap.size,
+    historicalDaysCovered: 10,
     results,
   };
 }

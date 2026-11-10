@@ -186,21 +186,31 @@ export interface IpQueryFeedMatch {
     | 'exact_fqdn'
     | 'wildcard_fqdn'
     | 'comment_host'
-    | 'exact_mac';
+    | 'exact_mac'
+    | 'historical_ip';
   matchedRule: string;
   lineNumber: number | null;
   commentNote: string | null;
   retentionPolicy: string;
+  isHistoricalOnly?: boolean;
+  lastSeenDisplay?: string | null;
+  lastSeenSha?: string | null;
 }
 
 export interface IpQueryResultItem {
   query: string;
   isValidIp: boolean;
-  status: 'blocked' | 'in_allowlist_only' | 'not_in_any_list' | 'invalid';
+  status:
+    | 'blocked'
+    | 'historical_blocked'
+    | 'in_allowlist_only'
+    | 'not_in_any_list'
+    | 'invalid';
   statusLabel: string;
   isAllowlisted: boolean;
   isExcludedFromLongTerm: boolean;
   blockMatches: IpQueryFeedMatch[];
+  historicalBlockMatches: IpQueryFeedMatch[];
   allowMatches: IpQueryFeedMatch[];
   matches: IpQueryFeedMatch[];
   advisory: string;
@@ -213,9 +223,11 @@ export interface IpQueryResponsePayload {
   queriedAtDisplay: string;
   totalQueried: number;
   blockedCount: number;
+  historicalBlockedCount: number;
   inAllowlistCount: number;
   cleanCount: number;
   scannedFilesCount: number;
+  historicalDaysCovered: number;
   results: IpQueryResultItem[];
 }
 
