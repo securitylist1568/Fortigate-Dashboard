@@ -290,7 +290,7 @@ export default function ThreatDefenseDashboardPage() {
             </span>
           </div>
           <span className="font-mono text-sky-400">
-            Automated Threat Feeds &amp; Defense System v2.3.8
+            Automated Threat Feeds &amp; Defense System v2.4.1
           </span>
         </div>
       </aside>
@@ -316,7 +316,7 @@ export default function ThreatDefenseDashboardPage() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-semibold">
                 <span>🛡️ 資安威脅情資與自動化封鎖清單監控平台</span>
                 <span>•</span>
-                <span>EDL Threat Feeds 動態發布系統 (v2.3.8)</span>
+                <span>EDL Threat Feeds 動態發布系統 (v2.4.1)</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-sky-200 to-sky-400 bg-clip-text text-transparent">
                 資安防護清單與威脅情資自動化更新系統
@@ -685,18 +685,16 @@ export default function ThreatDefenseDashboardPage() {
           </div>
         </nav>
 
-        {/* ==================== TAB: IP BLOCK STATUS LOOKUP (v2.3.8 Full-Repo *.txt + 10-Day Dynamic Rollover Lookup) ==================== */}
+        {/* ==================== TAB: IP BLOCK STATUS LOOKUP (v2.4.1 High-Contrast Inverted White Search Console) ==================== */}
         {activeTab === 'ip_lookup' && (
-          <section className="glass-panel p-6 space-y-5">
+          <section className="glass-panel p-6 space-y-6">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-4">
               <div>
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span>🔍 IP / 網域 / 設備清單狀態即時查詢工具（Full-Repo `*.txt` + 近 10 日滾動歷史比對 v2.3.8）</span>
+                <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                  <span>🔍 IP / 網域 / 設備清單狀態即時查詢工具（Full-Repo `*.txt` + 近 10 日滾動歷史比對 v2.4.1）</span>
                 </h2>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  100% 同步對齊來源儲存庫 <code>Fortigate</code> 內全部 <strong>25 份純文字清單檔 (`*.txt`)</strong> 之原始檔案名稱，並同時掃描<strong>現行最新 HEAD 版本</strong>與<strong>過去 10 天動態滾動清單歷史</strong>（解決本機未 `git pull` 或當日 00:00 歸零退場之查詢落差）：
-                  <br />• <strong className="text-rose-300">A. 在封鎖清單內</strong>：明確列出現行落在哪幾個封鎖檔（如 <code>g-BLACK_IP_Manual-v5.txt</code>、<code>ncloud_block_src_cert_remote.txt</code>、<code>g-NetworkDevices_Block-v1.txt</code> 等）以及<strong>近 10 日曾出現在哪份動態清單與日期</strong>。
-                  <br />• <strong className="text-sky-300">B. 不在封鎖清單內</strong>：自動檢索並列出落在哪幾個非封鎖之網站/維護/允許名單內（如 <code>NTNU-AcademicWebsites-CSIE-1.txt</code>、<code>NTNU-FormalWebsites-v2.txt</code>、<code>Security-UCP-maintenance-v1.txt</code>、<code>ncloud_allowlist.txt</code> 等）及檔案內該筆之 <code>#註解說明</code>。
+                <p className="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed">
+                  100% 同步對齊來源儲存庫 <code>Fortigate</code> 內全部 <strong>25 份純文字清單檔 (`*.txt`)</strong> 之原始檔案名稱，同時檢索<strong>現行最新 HEAD 版本</strong>與<strong>過去 10 天動態滾動清單歷史</strong>。
                 </p>
               </div>
               <div className="text-xs font-mono text-slate-400">
@@ -724,12 +722,26 @@ export default function ThreatDefenseDashboardPage() {
               </div>
             ) : (
               <>
-                <div className="glass-card p-4 space-y-3">
-                  <label className="block text-xs font-bold text-slate-200">
-                    輸入要查詢之 IPv4 位址、FQDN 網域/主機名稱或 MAC 位址（支援單筆或多筆查詢，以空白、逗號或換行分隔，單次最多 50 筆）：
-                  </label>
-                  <div className="flex flex-col sm:flex-row gap-3">
+                {/* High-Contrast Inverted Light/White Main Search Box */}
+                <div className="rounded-2xl bg-gradient-to-r from-white via-sky-50/95 to-indigo-50/90 border-2 border-sky-400 shadow-2xl shadow-sky-950/60 p-5 sm:p-6 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label
+                      htmlFor="ip-lookup-main-input"
+                      className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2"
+                    >
+                      <span className="px-2.5 py-0.5 rounded-lg bg-sky-600 text-white text-xs font-extrabold tracking-wide shadow-sm">
+                        🔍 查詢主介面
+                      </span>
+                      <span>請輸入要查詢之 IP 位址、FQDN 網域或 MAC 位址：</span>
+                    </label>
+                    <span className="text-xs font-semibold text-slate-600">
+                      支援單筆或多筆同時查詢（以空白或逗號分隔，單次最多 50 筆）
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row gap-3">
                     <input
+                      id="ip-lookup-main-input"
                       type="text"
                       value={ipQueryInput}
                       onChange={(e) => setIpQueryInput(e.target.value)}
@@ -738,17 +750,18 @@ export default function ThreatDefenseDashboardPage() {
                           handleQueryIps();
                         }
                       }}
-                      placeholder="例如：104.16.102.112, 176.123.1.163, 140.122.58.5, 140.122.251.74, 140.122.7.22, 140.122.111.3"
-                      className="flex-1 rounded-xl bg-slate-900/90 border border-slate-700 focus:border-sky-400 px-4 py-2.5 text-sm font-mono text-white outline-none placeholder:text-slate-500"
+                      placeholder="請直接輸入 IP 或網域（例如：104.16.102.112 , 176.123.1.163 , 140.122.251.74）..."
+                      className="flex-1 rounded-2xl bg-white border-2 border-slate-300 focus:border-sky-600 focus:ring-4 focus:ring-sky-500/20 px-5 py-4 text-lg sm:text-xl font-mono font-extrabold text-slate-950 shadow-inner outline-none placeholder:text-slate-400 placeholder:font-normal transition-all"
+                      autoFocus
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-stretch gap-2.5">
                       <button
                         type="button"
                         disabled={ipQueryLoading}
                         onClick={() => handleQueryIps()}
-                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xs sm:text-sm whitespace-nowrap shadow-lg shadow-sky-500/20 disabled:opacity-50"
+                        className="px-7 py-4 rounded-2xl bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 hover:from-sky-700 hover:to-indigo-800 text-white font-extrabold text-base sm:text-lg whitespace-nowrap shadow-lg shadow-sky-600/30 cursor-pointer disabled:opacity-50 transition-all"
                       >
-                        {ipQueryLoading ? '⏳ 全庫 25 檔 + 10日歷史檢索中...' : '🔍 立即查詢清單位置'}
+                        {ipQueryLoading ? '⏳ 檢索比對中...' : '🔍 立即查詢清單位置'}
                       </button>
                       {ipQueryInput && (
                         <button
@@ -758,7 +771,7 @@ export default function ThreatDefenseDashboardPage() {
                             setIpQueryResult(null);
                             setIpQueryError(null);
                           }}
-                          className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                          className="px-4 py-4 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-sm sm:text-base cursor-pointer transition-all"
                         >
                           清除
                         </button>
@@ -766,52 +779,13 @@ export default function ThreatDefenseDashboardPage() {
                     </div>
                   </div>
 
-                  {/* Light-themed Quick Option Box for Sample Queries */}
-                  <div className="rounded-xl bg-slate-100 border border-sky-300 p-3 text-xs text-slate-800 space-y-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-extrabold text-slate-900">
-                        ⚡ 一鍵帶入測試範例（點擊下方淺色按鈕立即實測 A 封鎖清單 / 歷史動態清單 / B 非封鎖名單）：
-                      </span>
-                      <span className="text-[11px] text-slate-600 font-mono">
-                        🔒 查詢結果經伺服器端 AES-256-GCM 加密回傳
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const sample = '104.16.102.112, 101.108.82.173, 176.123.1.163, 140.122.58.5';
-                          setIpQueryInput(sample);
-                          handleQueryIps(sample);
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 font-mono font-bold text-xs shadow-sm cursor-pointer transition-all"
-                      >
-                        🔴 範例 A (封鎖清單含 ncloud_block_src_cert_remote.txt)：104.16.102.112 / 101.108.82.173 / Manual-v5
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const sample = '140.122.251.74, 140.122.7.22, 140.122.111.3, 8.8.8.8';
-                          setIpQueryInput(sample);
-                          handleQueryIps(sample);
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-white hover:bg-sky-50 text-sky-800 border border-sky-300 font-mono font-bold text-xs shadow-sm cursor-pointer transition-all"
-                      >
-                        🔵 範例 B (不在封鎖清單，位於允許/網站/維護清單)：CSIE-1 / FormalWebsites-v2 / UCP-maintenance-v1
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const sample =
-                            '104.16.102.112, 176.123.1.163, 140.122.58.5, 140.122.251.74, 140.122.7.22, 140.122.111.3';
-                          setIpQueryInput(sample);
-                          handleQueryIps(sample);
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-white hover:bg-indigo-50 text-indigo-800 border border-indigo-300 font-mono font-bold text-xs shadow-sm cursor-pointer transition-all"
-                      >
-                        🔄 綜合對照範例 (A 封鎖清單 + 近10日動態清單 + B 非封鎖清單)
-                      </button>
-                    </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 pt-0.5">
+                    <span>
+                      💡 <strong>A. 在封鎖清單</strong>：自動顯示現行封鎖檔名、行號與近 10 日動態清單紀錄 ｜ <strong>B. 不在封鎖清單</strong>：自動顯示所在允許/網站/維護清單檔名與 <code>#註解</code>
+                    </span>
+                    <span className="font-mono text-slate-500">
+                      🔒 AES-256-GCM 密文檢索保護
+                    </span>
                   </div>
                 </div>
 
@@ -1462,15 +1436,29 @@ export default function ThreatDefenseDashboardPage() {
 
                 return (
                   <div className="space-y-4">
-                    {/* Clean 3-Layer Visual Diagram */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/85 border border-slate-800 space-y-3">
-                      {/* Layer 1 */}
-                      <div className="rounded-xl border border-sky-500/35 bg-sky-950/15 p-3.5 space-y-2.5">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-xs font-extrabold text-sky-300 flex items-center gap-1.5">
-                            <span>第一層：自動化排程主機（開發庫 4 支 Python 引擎）</span>
+                    {/* High-Contrast Light/Inverted 3-Layer Visual Diagram (Matched with 🧭 功能選項切換區) */}
+                    <div className="rounded-2xl bg-gradient-to-r from-slate-100 via-sky-50 to-indigo-100 border-2 border-sky-300/90 shadow-xl shadow-sky-950/50 p-4 sm:p-5 space-y-3.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                        <div className="inline-flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-full bg-sky-600 text-white text-[11px] font-extrabold tracking-wide shadow-sm">
+                            🏗️ 互動架構節點切換區
                           </span>
-                          <span className="text-[11px] font-mono text-slate-400">
+                          <span className="text-xs font-bold text-slate-700">
+                            將滑鼠移過或點擊下方淺色架構卡片，即可於下方檢視窗動態顯示該模組之技術細節與對應 <code>*.txt</code> 清單：
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-mono font-bold text-sky-800 bg-white/90 px-2.5 py-0.5 rounded-full border border-sky-300">
+                          目前檢視：{activeInfo.title}
+                        </span>
+                      </div>
+
+                      {/* Layer 1 */}
+                      <div className="rounded-xl bg-white/80 border border-sky-300 p-3.5 space-y-2.5 shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs sm:text-sm font-extrabold text-sky-900 flex items-center gap-1.5">
+                            <span>第一層：自動化排程主機（開發原始碼庫 `Fortigate-Dev`：4 支 Python 自動化引擎）</span>
+                          </span>
+                          <span className="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
                             錯峰分鐘尾數 0 / 2 / 5 / 8 · 每日 440 次巡檢
                           </span>
                         </div>
@@ -1480,25 +1468,25 @@ export default function ThreatDefenseDashboardPage() {
                               id: 'script_email',
                               icon: '📧',
                               name: 'EmailSys_block_v2_1.py',
-                              meta: '每 10 分鐘 (尾數 0) · 2 檔',
+                              meta: '每 10 分鐘 (尾數 0) · 產出 2 檔',
                             },
                             {
                               id: 'script_ntech',
                               icon: '🌐',
                               name: 'ntech_block_v2_1.py',
-                              meta: '每 10 分鐘 (尾數 2) · 2 檔',
+                              meta: '每 10 分鐘 (尾數 2) · 產出 2 檔',
                             },
                             {
                               id: 'script_topn',
                               icon: '⚡',
                               name: 'topn_feed_push_v4_5.py',
-                              meta: '每 10 分鐘 (尾數 5) · 6 檔',
+                              meta: '每 10 分鐘 (尾數 5) · 產出 6 檔',
                             },
                             {
                               id: 'script_longterm',
                               icon: '🛡️',
                               name: 'longterm_block_v1_0.py',
-                              meta: '每 3 小時 (30天TTL) · 1 檔',
+                              meta: '每 3 小時 (30天TTL) · 產出 1 檔',
                             },
                           ].map((node) => {
                             const selected = activeArchNode === node.id;
@@ -1508,23 +1496,35 @@ export default function ThreatDefenseDashboardPage() {
                                 type="button"
                                 onMouseEnter={() => setActiveArchNode(node.id)}
                                 onClick={() => setActiveArchNode(node.id)}
-                                className={`p-3 rounded-xl text-left transition-all cursor-pointer border ${
+                                className={`p-3 rounded-xl text-left transition-all cursor-pointer border flex items-center justify-between gap-2 ${
                                   selected
-                                    ? 'bg-sky-500/25 border-sky-400 shadow-md shadow-sky-500/20 ring-1 ring-sky-400'
-                                    : 'bg-slate-900/90 hover:bg-slate-900 border-slate-800 hover:border-sky-500/50'
+                                    ? 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 text-white border-sky-700 shadow-lg shadow-sky-600/30 ring-2 ring-sky-400/60 scale-[1.01]'
+                                    : 'bg-white hover:bg-sky-50 text-slate-800 hover:text-sky-900 border-slate-300 hover:border-sky-400 shadow-sm'
                                 }`}
                               >
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="font-mono text-xs font-bold text-white truncate">
+                                <div className="min-w-0">
+                                  <div
+                                    className={`font-mono text-xs sm:text-[13px] font-extrabold truncate ${
+                                      selected ? 'text-white' : 'text-slate-900'
+                                    }`}
+                                  >
                                     {node.icon} {node.name}
-                                  </span>
-                                  <span className="text-[10px] text-sky-400 shrink-0">
-                                    詳情 ↗
-                                  </span>
+                                  </div>
+                                  <div
+                                    className={`text-[11px] font-mono mt-0.5 truncate ${
+                                      selected ? 'text-sky-100' : 'text-slate-500'
+                                    }`}
+                                  >
+                                    {node.meta}
+                                  </div>
                                 </div>
-                                <div className="text-[11px] text-slate-400 mt-1 font-mono">
-                                  {node.meta}
-                                </div>
+                                <span
+                                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                                    selected
+                                      ? 'bg-amber-300 shadow-sm shadow-amber-200'
+                                      : 'bg-slate-300'
+                                  }`}
+                                />
                               </button>
                             );
                           })}
@@ -1532,21 +1532,21 @@ export default function ThreatDefenseDashboardPage() {
                       </div>
 
                       {/* Compact Flow Connector 1 */}
-                      <div className="flex items-center justify-center gap-2 text-[11px] font-mono text-sky-300 py-0.5">
+                      <div className="flex items-center justify-center gap-2 text-xs font-mono font-bold text-sky-800 py-0.5">
                         <span>▼</span>
-                        <span className="px-3 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-slate-300">
-                          狀態/額度原子寫入 + 全域白名單過濾 + Git Auto Push
+                        <span className="px-3.5 py-1 rounded-full bg-white border border-sky-300 text-slate-800 shadow-sm">
+                          狀態/額度台帳原子寫入 + 全域白名單過濾 + Git Auto Push
                         </span>
                         <span>▼</span>
                       </div>
 
                       {/* Layer 2 */}
-                      <div className="rounded-xl border border-emerald-500/35 bg-emerald-950/15 p-3.5 space-y-2.5">
+                      <div className="rounded-xl bg-white/80 border border-emerald-300 p-3.5 space-y-2.5 shadow-sm">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-xs font-extrabold text-emerald-300">
-                            第二層：EDL 實體情資發布儲存庫（Fortigate 全庫 26 份清單檔案）
+                          <span className="text-xs sm:text-sm font-extrabold text-emerald-900">
+                            第二層：EDL 實體情資發布儲存庫（`Fortigate` 全庫 26 份清單檔案）
                           </span>
-                          <span className="text-[11px] font-mono text-slate-400">
+                          <span className="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
                             100% 原始 *.txt 檔名對齊 · 無異動自動跳過 Commit
                           </span>
                         </div>
@@ -1584,23 +1584,35 @@ export default function ThreatDefenseDashboardPage() {
                                 type="button"
                                 onMouseEnter={() => setActiveArchNode(node.id)}
                                 onClick={() => setActiveArchNode(node.id)}
-                                className={`p-3 rounded-xl text-left transition-all cursor-pointer border ${
+                                className={`p-3 rounded-xl text-left transition-all cursor-pointer border flex items-center justify-between gap-2 ${
                                   selected
-                                    ? 'bg-emerald-500/25 border-emerald-400 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-400'
-                                    : 'bg-slate-900/90 hover:bg-slate-900 border-slate-800 hover:border-emerald-500/50'
+                                    ? 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 text-white border-sky-700 shadow-lg shadow-sky-600/30 ring-2 ring-sky-400/60 scale-[1.01]'
+                                    : 'bg-white hover:bg-sky-50 text-slate-800 hover:text-sky-900 border-slate-300 hover:border-sky-400 shadow-sm'
                                 }`}
                               >
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="text-xs font-bold text-white truncate">
+                                <div className="min-w-0">
+                                  <div
+                                    className={`text-xs sm:text-[13px] font-extrabold truncate ${
+                                      selected ? 'text-white' : 'text-slate-900'
+                                    }`}
+                                  >
                                     {node.icon} {node.name}
-                                  </span>
-                                  <span className="text-[10px] text-emerald-400 shrink-0">
-                                    詳情 ↗
-                                  </span>
+                                  </div>
+                                  <div
+                                    className={`text-[11px] font-mono mt-0.5 truncate ${
+                                      selected ? 'text-sky-100' : 'text-slate-500'
+                                    }`}
+                                  >
+                                    {node.meta}
+                                  </div>
                                 </div>
-                                <div className="text-[11px] text-slate-400 mt-1 font-mono">
-                                  {node.meta}
-                                </div>
+                                <span
+                                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                                    selected
+                                      ? 'bg-amber-300 shadow-sm shadow-amber-200'
+                                      : 'bg-slate-300'
+                                  }`}
+                                />
                               </button>
                             );
                           })}
@@ -1608,9 +1620,9 @@ export default function ThreatDefenseDashboardPage() {
                       </div>
 
                       {/* Compact Flow Connector 2 */}
-                      <div className="flex items-center justify-center gap-2 text-[11px] font-mono text-emerald-300 py-0.5">
+                      <div className="flex items-center justify-center gap-2 text-xs font-mono font-bold text-sky-800 py-0.5">
                         <span>▼</span>
-                        <span className="px-3 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-slate-300">
+                        <span className="px-3.5 py-1 rounded-full bg-white border border-sky-300 text-slate-800 shadow-sm">
                           EDL 定時拉取 Raw URL 套用阻斷 + 雲端看板 AES-256-GCM 唯讀監控
                         </span>
                         <span>▼</span>
@@ -1623,7 +1635,7 @@ export default function ThreatDefenseDashboardPage() {
                             id: 'enforce_fw',
                             icon: '🛡️',
                             name: '第三層 (A)：邊界核心防火牆 (EDL Threat Feeds)',
-                            meta: '自動讀取純文字清單執行邊界阻斷与 DNS 警告頁回應',
+                            meta: '自動讀取純文字清單執行邊界阻斷與 DNS 警告頁回應',
                           },
                           {
                             id: 'enforce_dash',
@@ -1639,67 +1651,79 @@ export default function ThreatDefenseDashboardPage() {
                               type="button"
                               onMouseEnter={() => setActiveArchNode(node.id)}
                               onClick={() => setActiveArchNode(node.id)}
-                              className={`p-3.5 rounded-xl text-left transition-all cursor-pointer border ${
+                              className={`p-3.5 rounded-xl text-left transition-all cursor-pointer border flex items-center justify-between gap-2 ${
                                 selected
-                                  ? 'bg-purple-500/25 border-purple-400 shadow-md shadow-purple-500/20 ring-1 ring-purple-400'
-                                  : 'bg-slate-900/90 hover:bg-slate-900 border-slate-800 hover:border-purple-500/50'
+                                  ? 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 text-white border-sky-700 shadow-lg shadow-sky-600/30 ring-2 ring-sky-400/60 scale-[1.01]'
+                                  : 'bg-white hover:bg-sky-50 text-slate-800 hover:text-sky-900 border-slate-300 hover:border-sky-400 shadow-sm'
                               }`}
                             >
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-xs sm:text-sm font-extrabold text-white">
+                              <div className="min-w-0">
+                                <div
+                                  className={`text-xs sm:text-sm font-extrabold truncate ${
+                                    selected ? 'text-white' : 'text-slate-900'
+                                  }`}
+                                >
                                   {node.icon} {node.name}
-                                </span>
-                                <span className="text-[10px] text-purple-300 shrink-0 font-mono">
-                                  詳情 ↗
-                                </span>
+                                </div>
+                                <div
+                                  className={`text-[11px] mt-0.5 truncate ${
+                                    selected ? 'text-sky-100' : 'text-slate-600'
+                                  }`}
+                                >
+                                  {node.meta}
+                                </div>
                               </div>
-                              <div className="text-[11px] text-slate-400 mt-1">
-                                {node.meta}
-                              </div>
+                              <span
+                                className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                                  selected
+                                    ? 'bg-amber-300 shadow-sm shadow-amber-200'
+                                    : 'bg-slate-300'
+                                }`}
+                              />
                             </button>
                           );
                         })}
                       </div>
                     </div>
 
-                    {/* CrossOver Technical Detail Inspector Card */}
-                    <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 border-2 border-sky-400/50 p-5 shadow-xl space-y-3 transition-all">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                    {/* CrossOver Technical Detail Inspector Card (Light/Clean High-Readability Card) */}
+                    <div className="rounded-2xl bg-white border-2 border-sky-400 p-5 shadow-xl space-y-3 transition-all text-slate-900">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
                         <div className="space-y-0.5">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-2.5 py-0.5 rounded-full bg-sky-500/20 border border-sky-400/40 text-sky-300 text-[11px] font-bold">
+                            <span className="px-2.5 py-0.5 rounded-full bg-sky-600 text-white text-[11px] font-extrabold">
                               🔍 CrossOver 技術規格檢視窗
                             </span>
-                            <span className="text-xs text-slate-400 font-mono">
+                            <span className="text-xs text-slate-600 font-mono font-bold">
                               {activeInfo.layer}
                             </span>
                           </div>
-                          <h3 className="text-base sm:text-lg font-extrabold text-white pt-1">
+                          <h3 className="text-base sm:text-lg font-extrabold text-slate-950 pt-1">
                             {activeInfo.title}
                           </h3>
-                          <p className="text-xs text-sky-300 font-semibold">
+                          <p className="text-xs sm:text-sm text-sky-700 font-bold">
                             {activeInfo.subtitle}
                           </p>
                         </div>
-                        <span className="px-3 py-1 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono text-amber-300">
+                        <span className="px-3 py-1.5 rounded-xl bg-sky-50 border border-sky-300 text-xs font-mono font-extrabold text-sky-900">
                           {activeInfo.scheduleOrRole}
                         </span>
                       </div>
 
-                      <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
+                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
                         {activeInfo.summary}
                       </p>
 
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-1">
-                        <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5 space-y-2">
-                          <div className="text-xs font-bold text-emerald-300">
+                        <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-2">
+                          <div className="text-xs font-extrabold text-slate-900">
                             📄 對應之 `Fortigate` 清單檔案 / 容量指標（共 {activeInfo.files.length} 項）：
                           </div>
                           <div className="flex flex-wrap gap-1.5">
                             {activeInfo.files.map((f) => (
                               <span
                                 key={f}
-                                className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono text-white"
+                                className="px-2.5 py-1 rounded-lg bg-white border border-sky-300 text-xs font-mono font-bold text-sky-900 shadow-sm"
                               >
                                 {f}
                               </span>
@@ -1707,11 +1731,11 @@ export default function ThreatDefenseDashboardPage() {
                           </div>
                         </div>
 
-                        <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5 space-y-1.5">
-                          <div className="text-xs font-bold text-sky-300">
+                        <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-1.5">
+                          <div className="text-xs font-extrabold text-slate-900">
                             ⚙️ 關鍵工程與防呆機制：
                           </div>
-                          <ul className="space-y-1 text-xs text-slate-300 list-disc list-inside">
+                          <ul className="space-y-1 text-xs text-slate-700 font-medium list-disc list-inside">
                             {activeInfo.techSpecs.map((spec, idx) => (
                               <li key={idx} className="leading-relaxed">
                                 {spec}

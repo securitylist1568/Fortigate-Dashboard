@@ -1,6 +1,6 @@
 {
   "name": "cti-defense-dashboard",
-  "version": "2.3.8",
+  "version": "2.4.1",
   "private": true,
   "description": "Cyber Threat Intelligence & Automated Blocklist Management System (AES-256-GCM Security Vault)",
   "scripts": {
