@@ -172,22 +172,36 @@ export interface DashboardSnapshot {
 
 export interface IpQueryFeedMatch {
   feedId: string;
+  fileName: string;
   displayName: string;
+  category: FeedCategory;
   categoryLabel: string;
+  isBlocklist: boolean;
   generatorLabel: string;
   cadenceLabel: string;
-  matchType: 'exact_ip' | 'cidr_subnet';
+  description: string;
+  matchType:
+    | 'exact_ip'
+    | 'cidr_subnet'
+    | 'exact_fqdn'
+    | 'wildcard_fqdn'
+    | 'comment_host'
+    | 'exact_mac';
   matchedRule: string;
+  lineNumber: number | null;
+  commentNote: string | null;
   retentionPolicy: string;
 }
 
 export interface IpQueryResultItem {
   query: string;
   isValidIp: boolean;
-  status: 'blocked' | 'clean' | 'allowlisted' | 'internal_protected' | 'invalid';
+  status: 'blocked' | 'in_allowlist_only' | 'not_in_any_list' | 'invalid';
   statusLabel: string;
   isAllowlisted: boolean;
   isExcludedFromLongTerm: boolean;
+  blockMatches: IpQueryFeedMatch[];
+  allowMatches: IpQueryFeedMatch[];
   matches: IpQueryFeedMatch[];
   advisory: string;
 }
@@ -199,7 +213,9 @@ export interface IpQueryResponsePayload {
   queriedAtDisplay: string;
   totalQueried: number;
   blockedCount: number;
+  inAllowlistCount: number;
   cleanCount: number;
+  scannedFilesCount: number;
   results: IpQueryResultItem[];
 }
 

@@ -286,7 +286,7 @@ export default function ThreatDefenseDashboardPage() {
             </span>
           </div>
           <span className="font-mono text-sky-400">
-            Automated Threat Feeds &amp; Defense System v2.2
+            Automated Threat Feeds &amp; Defense System v2.3
           </span>
         </div>
       </aside>
@@ -312,7 +312,7 @@ export default function ThreatDefenseDashboardPage() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-semibold">
                 <span>🛡️ 資安威脅情資與自動化封鎖清單監控平台</span>
                 <span>•</span>
-                <span>EDL Threat Feeds 動態發布系統 (v2.2)</span>
+                <span>EDL Threat Feeds 動態發布系統 (v2.3)</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-sky-200 to-sky-400 bg-clip-text text-transparent">
                 資安防護清單與威脅情資自動化更新系統
@@ -562,52 +562,137 @@ export default function ThreatDefenseDashboardPage() {
           </div>
         </header>
 
-        {/* Navigation Tabs */}
-        <nav className="glass-panel p-2 flex flex-wrap items-center gap-2 no-print">
-          {[
-            { id: 'overview', icon: '🏗️', label: '系統架構、資料流與腳本規格' },
-            { id: 'ip_lookup', icon: '🔍', label: 'IP 封鎖狀態查詢' },
-            { id: 'trend', icon: '📈', label: '長期黑名單趨勢與 24h 異動' },
-            { id: 'inventory', icon: '📂', label: '全庫清單分類彙總表' },
-            { id: 'compliance', icon: '⚖️', label: '容量水位預警與 ISO 27001:2022' },
-            { id: 'methodology', icon: '📘', label: '方法論、公式與資料來源說明' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() =>
-                setActiveTab(
-                  tab.id as
-                    | 'overview'
-                    | 'ip_lookup'
-                    | 'trend'
-                    | 'inventory'
-                    | 'compliance'
-                    | 'methodology'
-                )
+        {/* Navigation Tabs (v2.3 High-Contrast Light Option Bar) */}
+        <nav
+          aria-label="系統功能選項導覽列"
+          className="rounded-2xl bg-gradient-to-r from-slate-100 via-sky-50 to-indigo-100 border-2 border-sky-300/90 shadow-xl shadow-sky-950/50 p-3.5 sm:p-4 no-print"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5 px-1">
+            <div className="inline-flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-sky-600 text-white text-[11px] font-extrabold tracking-wide shadow-sm">
+                🧭 功能選項切換區
+              </span>
+              <span className="text-xs font-bold text-slate-700">
+                點擊下方淺色選項卡切換檢視模組或執行全庫清單 (`*.txt`) 封鎖/白名單查詢：
+              </span>
+            </div>
+            <span className="text-[11px] font-mono font-semibold text-slate-600">
+              目前檢視模組：{
+                {
+                  overview: '🏗️ 系統架構、資料流與腳本規格',
+                  ip_lookup: '🔍 IP / 網域封鎖與清單狀態查詢',
+                  trend: '📈 長期黑名單趨勢與 24h 異動',
+                  inventory: '📂 全庫清單分類彙總表 (原始檔名)',
+                  compliance: '⚖️ 容量水位預警與 ISO 27001:2022',
+                  methodology: '📘 方法論、公式與資料來源說明',
+                }[activeTab]
               }
-              className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
-                activeTab === tab.id
-                  ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/25'
-                  : 'text-slate-300 hover:bg-slate-800/70'
-              }`}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2.5">
+            {[
+              {
+                id: 'overview',
+                icon: '🏗️',
+                label: '系統架構、資料流與腳本規格',
+                sub: '三層架構與 4 支排程',
+              },
+              {
+                id: 'ip_lookup',
+                icon: '🔍',
+                label: 'IP 封鎖狀態查詢',
+                sub: '全庫 25 份 *.txt 雙向比對',
+              },
+              {
+                id: 'trend',
+                icon: '📈',
+                label: '長期黑名單趨勢與 24h 異動',
+                sub: 'g-BLACK_IP_AutoLongTerm-v1.txt',
+              },
+              {
+                id: 'inventory',
+                icon: '📂',
+                label: '全庫清單分類彙總表',
+                sub: '100% 對應 Fortigate 原始檔名',
+              },
+              {
+                id: 'compliance',
+                icon: '⚖️',
+                label: '容量水位預警與 ISO 27001:2022',
+                sub: 'EDL 水位與法規控制項',
+              },
+              {
+                id: 'methodology',
+                icon: '📘',
+                label: '方法論、公式與資料來源說明',
+                sub: '去重聯集與驗證依據',
+              },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() =>
+                    setActiveTab(
+                      tab.id as
+                        | 'overview'
+                        | 'ip_lookup'
+                        | 'trend'
+                        | 'inventory'
+                        | 'compliance'
+                        | 'methodology'
+                    )
+                  }
+                  className={`px-3.5 py-2.5 rounded-xl text-left transition-all flex items-center justify-between gap-2 cursor-pointer border ${
+                    isActive
+                      ? 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 text-white border-sky-700 shadow-lg shadow-sky-600/30 ring-2 ring-sky-400/60 scale-[1.01]'
+                      : 'bg-white/95 hover:bg-sky-50 text-slate-800 hover:text-sky-900 border-slate-300/90 hover:border-sky-400 shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-start gap-2 min-w-0">
+                    <span className="text-base leading-none mt-0.5">{tab.icon}</span>
+                    <div className="min-w-0">
+                      <div
+                        className={`text-xs sm:text-[13px] font-extrabold leading-snug truncate ${
+                          isActive ? 'text-white' : 'text-slate-800'
+                        }`}
+                      >
+                        {tab.label}
+                      </div>
+                      <div
+                        className={`text-[10px] font-mono truncate mt-0.5 ${
+                          isActive ? 'text-sky-100' : 'text-slate-500'
+                        }`}
+                      >
+                        {tab.sub}
+                      </div>
+                    </div>
+                  </div>
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      isActive ? 'bg-amber-300 shadow-sm shadow-amber-200' : 'bg-slate-300'
+                    }`}
+                  />
+                </button>
+              );
+            })}
+          </div>
         </nav>
 
-        {/* ==================== TAB: IP BLOCK STATUS LOOKUP ==================== */}
+        {/* ==================== TAB: IP BLOCK STATUS LOOKUP (v2.3 Full-Repo *.txt Exact Alignment) ==================== */}
         {activeTab === 'ip_lookup' && (
           <section className="glass-panel p-6 space-y-5">
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-4">
               <div>
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span>🔍 IP 威脅情資與封鎖狀態即時查詢工具（IP Blocklist Lookup）</span>
+                  <span>🔍 IP / 網域 / 設備清單狀態即時查詢工具（Full-Repo `*.txt` Exact Lookup v2.3）</span>
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  對應本地 <code>query_ip_history.py</code> 核心檢索邏輯：支援單一或多個 IPv4 位址，即時比對全庫現行外部 IP 黑名單、郵件 CIDR 封鎖網段（32-bit 子網遮罩位元運算）及全域白名單/剔除清單狀態。
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  100% 同步對齊來源儲存庫 <code>Fortigate</code> 內全部 <strong>25 份純文字清單檔 (`*.txt`)</strong> 之原始檔案名稱與逐行內容：
+                  <br />• <strong className="text-rose-300">A. 在封鎖清單內</strong>：明確列出落在哪幾個封鎖檔（如 <code>g-BLACK_IP_Manual-v5.txt</code>、<code>emailsys_block_fqdn.txt</code>、<code>g-NetworkDevices_Block-v1.txt</code> 等）與行號。
+                  <br />• <strong className="text-sky-300">B. 不在封鎖清單內</strong>：自動檢索並列出落在哪幾個非封鎖之網站/維護/允許名單內（如 <code>NTNU-AcademicWebsites-CSIE-1.txt</code>、<code>NTNU-FormalWebsites-v2.txt</code>、<code>Security-UCP-maintenance-v1.txt</code>、<code>ncloud_allowlist.txt</code> 等）及檔案內該筆之 <code>#註解說明</code>。
                 </p>
               </div>
               <div className="text-xs font-mono text-slate-400">
@@ -623,7 +708,7 @@ export default function ThreatDefenseDashboardPage() {
             {!isUnlocked ? (
               <div className="text-center py-12 space-y-3">
                 <div className="text-slate-300 text-sm font-semibold">
-                  🔒 請先解鎖安全金庫以使用 IP 封鎖狀態查詢功能
+                  🔒 請先解鎖安全金庫以使用全庫 `*.txt` 清單狀態查詢功能
                 </div>
                 <button
                   type="button"
@@ -637,7 +722,7 @@ export default function ThreatDefenseDashboardPage() {
               <>
                 <div className="glass-card p-4 space-y-3">
                   <label className="block text-xs font-bold text-slate-200">
-                    輸入要查詢之 IPv4 位址（支援單一或多個 IP，以空白、逗號或換行分隔，單次最多 50 筆）：
+                    輸入要查詢之 IPv4 位址、FQDN 網域/主機名稱或 MAC 位址（支援單筆或多筆查詢，以空白、逗號或換行分隔，單次最多 50 筆）：
                   </label>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <input
@@ -649,7 +734,7 @@ export default function ThreatDefenseDashboardPage() {
                           handleQueryIps();
                         }
                       }}
-                      placeholder="例如：60.251.148.94, 35.201.232.104, 8.8.8.8"
+                      placeholder="例如：176.123.1.163, 140.122.58.5, 140.122.251.74, 140.122.7.22, 140.122.111.3, granestichs.top"
                       className="flex-1 rounded-xl bg-slate-900/90 border border-slate-700 focus:border-sky-400 px-4 py-2.5 text-sm font-mono text-white outline-none placeholder:text-slate-500"
                     />
                     <div className="flex items-center gap-2">
@@ -659,7 +744,7 @@ export default function ThreatDefenseDashboardPage() {
                         onClick={() => handleQueryIps()}
                         className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xs sm:text-sm whitespace-nowrap shadow-lg shadow-sky-500/20 disabled:opacity-50"
                       >
-                        {ipQueryLoading ? '⏳ 檢索比對中...' : '🔍 立即查詢封鎖狀態'}
+                        {ipQueryLoading ? '⏳ 全庫 25 檔檢索中...' : '🔍 立即查詢清單位置'}
                       </button>
                       {ipQueryInput && (
                         <button
@@ -677,35 +762,52 @@ export default function ThreatDefenseDashboardPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 pt-1">
+                  {/* Light-themed Quick Option Box for Sample Queries */}
+                  <div className="rounded-xl bg-slate-100 border border-sky-300 p-3 text-xs text-slate-800 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-extrabold text-slate-900">
+                        ⚡ 一鍵帶入測試範例（點擊下方淺色按鈕立即實測 A/B 兩類名單歸屬）：
+                      </span>
+                      <span className="text-[11px] text-slate-600 font-mono">
+                        🔒 查詢結果經伺服器端 AES-256-GCM 加密回傳
+                      </span>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span>快速測試範例：</span>
                       <button
                         type="button"
                         onClick={() => {
-                          const sample = '8.8.8.8, 1.1.1.1';
+                          const sample = '176.123.1.163, 140.122.58.5, granestichs.top';
                           setIpQueryInput(sample);
                           handleQueryIps(sample);
                         }}
-                        className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-sky-300 font-mono"
+                        className="px-3 py-1.5 rounded-lg bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 font-mono font-bold text-xs shadow-sm cursor-pointer transition-all"
                       >
-                        8.8.8.8, 1.1.1.1 (白名單保護範例)
+                        🔴 範例 A (在封鎖清單)：g-BLACK_IP_Manual-v5.txt / g-NetworkDevices_Block-v1.txt / FQDN
                       </button>
                       <button
                         type="button"
                         onClick={() => {
-                          const sample = '60.251.148.94 35.201.232.104 220.130.189.210';
+                          const sample = '140.122.251.74, 140.122.7.22, 140.122.111.3, 8.8.8.8';
                           setIpQueryInput(sample);
                           handleQueryIps(sample);
                         }}
-                        className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono"
+                        className="px-3 py-1.5 rounded-lg bg-white hover:bg-sky-50 text-sky-800 border border-sky-300 font-mono font-bold text-xs shadow-sm cursor-pointer transition-all"
                       >
-                        60.251.148.94 等多筆查詢範例
+                        🔵 範例 B (不在封鎖清單，位於允許/網站/維護清單)：CSIE-1 / FormalWebsites-v2 / UCP-maintenance-v1
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sample =
+                            '176.123.1.163, 140.122.58.5, 140.122.251.74, 140.122.7.22, 140.122.111.3';
+                          setIpQueryInput(sample);
+                          handleQueryIps(sample);
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-white hover:bg-indigo-50 text-indigo-800 border border-indigo-300 font-mono font-bold text-xs shadow-sm cursor-pointer transition-all"
+                      >
+                        🔄 綜合對照範例 (A 封鎖清單 + B 非封鎖清單同時比對)
                       </button>
                     </div>
-                    <span>
-                      🔒 查詢結果經伺服器端 <code>AES-256-GCM</code> 加密回傳，不暴露其他清單內容
-                    </span>
                   </div>
                 </div>
 
@@ -717,25 +819,41 @@ export default function ThreatDefenseDashboardPage() {
 
                 {ipQueryResult && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                       <div className="glass-card p-3.5">
-                        <div className="text-[11px] text-slate-400">本次查詢 IP 總數</div>
+                        <div className="text-[11px] text-slate-400">
+                          本次查詢總數 (掃描 {ipQueryResult.scannedFilesCount ?? 25} 份 *.txt)
+                        </div>
                         <div className="text-xl font-extrabold text-white mt-0.5">
                           {ipQueryResult.totalQueried} 筆
                         </div>
                       </div>
                       <div className="glass-card p-3.5 border-l-4 border-l-rose-500">
-                        <div className="text-[11px] text-slate-400">處於封鎖中 (Blocked)</div>
+                        <div className="text-[11px] text-slate-400">
+                          A. 在封鎖清單內 (Blocked)
+                        </div>
                         <div className="text-xl font-extrabold text-rose-400 mt-0.5">
                           {ipQueryResult.blockedCount} 筆
                         </div>
                       </div>
+                      <div className="glass-card p-3.5 border-l-4 border-l-sky-400">
+                        <div className="text-[11px] text-slate-400">
+                          B. 不在封鎖清單 (位於網站/維護/允許名單)
+                        </div>
+                        <div className="text-xl font-extrabold text-sky-300 mt-0.5">
+                          {ipQueryResult.inAllowlistCount ?? 0} 筆
+                        </div>
+                      </div>
                       <div className="glass-card p-3.5 border-l-4 border-l-emerald-500">
                         <div className="text-[11px] text-slate-400">
-                          未封鎖 / 白名單保護
+                          未出現在任何清單檔案
                         </div>
                         <div className="text-xl font-extrabold text-emerald-400 mt-0.5">
-                          {ipQueryResult.cleanCount} 筆
+                          {Math.max(
+                            0,
+                            ipQueryResult.cleanCount - (ipQueryResult.inAllowlistCount ?? 0)
+                          )}{' '}
+                          筆
                         </div>
                       </div>
                       <div className="glass-card p-3.5 flex flex-col justify-between">
@@ -762,122 +880,210 @@ export default function ThreatDefenseDashboardPage() {
                     </div>
 
                     <div className="space-y-4">
-                      {ipQueryResult.results.map((item) => (
-                        <div
-                          key={item.query}
-                          className={`glass-card p-5 space-y-3 border-l-4 ${
-                            item.status === 'blocked'
-                              ? 'border-l-rose-500'
-                              : item.status === 'allowlisted' ||
-                                item.status === 'internal_protected'
-                              ? 'border-l-sky-400'
-                              : item.status === 'clean'
-                              ? 'border-l-emerald-400'
-                              : 'border-l-slate-500'
-                          }`}
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs text-slate-400">查詢目標 IP：</span>
-                              <code className="text-base font-extrabold text-white bg-slate-900 px-2.5 py-0.5 rounded border border-slate-700">
-                                {item.query}
-                              </code>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              {item.isAllowlisted && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
-                                  ✅ 已列入全域白名單 (allowlist)
-                                </span>
-                              )}
-                              {item.isExcludedFromLongTerm && (
-                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                                  🛡️ 已列入長期剔除清單 (longterm_exclude)
-                                </span>
-                              )}
-                              <span
-                                className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                                  item.status === 'blocked'
-                                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                                    : item.status === 'allowlisted' ||
-                                      item.status === 'internal_protected'
-                                    ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
-                                    : item.status === 'clean'
-                                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                                    : 'bg-slate-800 text-slate-300 border-slate-700'
-                                }`}
-                              >
-                                {item.statusLabel}
-                              </span>
-                            </div>
-                          </div>
-
-                          {item.matches.length > 0 && (
-                            <div className="overflow-x-auto">
-                              <div className="text-xs font-bold text-rose-300 mb-2">
-                                1. 現行命中封鎖清單位置 (HEAD 最新版)：
+                      {ipQueryResult.results.map((item) => {
+                        const blockList = item.blockMatches ?? [];
+                        const allowList = item.allowMatches ?? [];
+                        return (
+                          <div
+                            key={item.query}
+                            className={`glass-card p-5 space-y-4 border-l-4 ${
+                              item.status === 'blocked'
+                                ? 'border-l-rose-500'
+                                : item.status === 'in_allowlist_only'
+                                ? 'border-l-sky-400'
+                                : item.status === 'not_in_any_list'
+                                ? 'border-l-emerald-400'
+                                : 'border-l-slate-500'
+                            }`}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                              <div className="flex flex-wrap items-center gap-2.5">
+                                <span className="text-xs text-slate-400">查詢目標：</span>
+                                <code className="text-base font-extrabold text-white bg-slate-900 px-3 py-0.5 rounded border border-slate-700">
+                                  {item.query}
+                                </code>
+                                {blockList.length > 0 && (
+                                  <span className="px-2.5 py-0.5 rounded-md bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs font-mono font-bold">
+                                    命中封鎖檔：{blockList.map((m) => m.fileName).join(' , ')}
+                                  </span>
+                                )}
+                                {allowList.length > 0 && (
+                                  <span className="px-2.5 py-0.5 rounded-md bg-sky-500/20 border border-sky-500/40 text-sky-200 text-xs font-mono font-bold">
+                                    命中非封鎖名單：{allowList.map((m) => m.fileName).join(' , ')}
+                                  </span>
+                                )}
                               </div>
-                              <table className="w-full text-left border-collapse text-xs">
-                                <thead>
-                                  <tr className="border-b border-slate-700 bg-slate-900/60 text-slate-300">
-                                    <th className="p-2.5">命中清單識別名稱</th>
-                                    <th className="p-2.5">防護類別</th>
-                                    <th className="p-2.5">比對命中型態</th>
-                                    <th className="p-2.5">命中規則 / 網段</th>
-                                    <th className="p-2.5">來源腳本與頻率</th>
-                                    <th className="p-2.5">退場與排除機制</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-800/80">
-                                  {item.matches.map((m) => (
-                                    <tr key={m.feedId} className="hover:bg-slate-800/40">
-                                      <td className="p-2.5 font-mono font-bold text-white">
-                                        {m.displayName}
-                                      </td>
-                                      <td className="p-2.5 whitespace-nowrap text-slate-300">
-                                        {m.categoryLabel}
-                                      </td>
-                                      <td className="p-2.5 whitespace-nowrap">
-                                        <span
-                                          className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                                            m.matchType === 'exact_ip'
-                                              ? 'bg-rose-500/20 text-rose-300'
-                                              : 'bg-amber-500/20 text-amber-300'
-                                          }`}
-                                        >
-                                          {m.matchType === 'exact_ip'
-                                            ? '精確 IP 命中'
-                                            : 'CIDR 網段涵蓋'}
-                                        </span>
-                                      </td>
-                                      <td className="p-2.5 font-mono text-sky-300">
-                                        {m.matchedRule}
-                                      </td>
-                                      <td className="p-2.5 text-slate-300 whitespace-nowrap">
-                                        {m.generatorLabel} ({m.cadenceLabel})
-                                      </td>
-                                      <td className="p-2.5 text-slate-300">
-                                        {m.retentionPolicy}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {item.isAllowlisted && (
+                                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
+                                    ✅ ncloud_allowlist.txt
+                                  </span>
+                                )}
+                                {item.isExcludedFromLongTerm && (
+                                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                                    🛡️ longterm_exclude.txt
+                                  </span>
+                                )}
+                                <span
+                                  className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                                    item.status === 'blocked'
+                                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                                      : item.status === 'in_allowlist_only'
+                                      ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                                      : item.status === 'not_in_any_list'
+                                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                      : 'bg-slate-800 text-slate-300 border-slate-700'
+                                  }`}
+                                >
+                                  {item.statusLabel}
+                                </span>
+                              </div>
                             </div>
-                          )}
 
-                          <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                              <strong className="text-white">💡 狀態說明與處置指引：</strong>{' '}
-                              {item.advisory}
-                            </div>
-                            {item.isValidIp && (
-                              <span className="font-mono text-[11px] text-slate-400">
-                                本地歷史查詢：<code>python query_ip_history.py {item.query} --days 7</code>
-                              </span>
+                            {/* Case A: Blocklist Matches Table */}
+                            {blockList.length > 0 && (
+                              <div className="overflow-x-auto space-y-1.5">
+                                <div className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
+                                  <span>🔴 A. 落在封鎖清單 (`Fortigate` 封鎖名單檔案位置，共 {blockList.length} 份)：</span>
+                                </div>
+                                <table className="w-full text-left border-collapse text-xs">
+                                  <thead>
+                                    <tr className="border-b border-slate-700 bg-rose-950/40 text-slate-200">
+                                      <th className="p-2.5">來源 `Fortigate` 原始檔案名稱 (`*.txt`)</th>
+                                      <th className="p-2.5">清單類別</th>
+                                      <th className="p-2.5">命中型態</th>
+                                      <th className="p-2.5">命中規則 / 行號 / 註解</th>
+                                      <th className="p-2.5">負責腳本與更新頻率</th>
+                                      <th className="p-2.5">清單用途與退場機制</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-800/80">
+                                    {blockList.map((m) => (
+                                      <tr key={m.feedId} className="hover:bg-slate-800/40">
+                                        <td className="p-2.5 font-mono font-extrabold text-rose-300 whitespace-nowrap">
+                                          📄 {m.fileName}
+                                        </td>
+                                        <td className="p-2.5 whitespace-nowrap text-slate-300">
+                                          {m.categoryLabel}
+                                        </td>
+                                        <td className="p-2.5 whitespace-nowrap">
+                                          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                            {m.matchType === 'exact_ip'
+                                              ? '精確 IP 命中'
+                                              : m.matchType === 'cidr_subnet'
+                                              ? 'CIDR 子網段涵蓋'
+                                              : m.matchType === 'exact_fqdn'
+                                              ? '精確 FQDN 命中'
+                                              : m.matchType === 'wildcard_fqdn'
+                                              ? '萬用字元網域命中'
+                                              : m.matchType === 'exact_mac'
+                                              ? '精確 MAC 命中'
+                                              : '註解主機命中'}
+                                          </span>
+                                        </td>
+                                        <td className="p-2.5 font-mono text-sky-300">
+                                          <div>{m.matchedRule}</div>
+                                          <div className="text-[11px] text-slate-400">
+                                            {m.lineNumber ? `位於檔案第 ${m.lineNumber} 行` : ''}
+                                            {m.commentNote ? ` · 註解：#${m.commentNote}` : ''}
+                                          </div>
+                                        </td>
+                                        <td className="p-2.5 text-slate-300 whitespace-nowrap">
+                                          {m.generatorLabel} ({m.cadenceLabel})
+                                        </td>
+                                        <td className="p-2.5 text-slate-300">
+                                          <div className="font-semibold text-slate-200">{m.description}</div>
+                                          <div className="text-[11px] text-slate-400">{m.retentionPolicy}</div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
                             )}
+
+                            {/* Case B: Non-Blocklist (Allowlist / Website / Maintenance) Matches Table */}
+                            {allowList.length > 0 && (
+                              <div className="overflow-x-auto space-y-1.5">
+                                <div className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
+                                  <span>
+                                    🔵 B. {blockList.length === 0 ? '不在封鎖清單內 — ' : '同時'}落在允許 / 正式網站 / 學術網站 / 維護名單 (`Fortigate` 檔案位置，共 {allowList.length} 份)：
+                                  </span>
+                                </div>
+                                <table className="w-full text-left border-collapse text-xs">
+                                  <thead>
+                                    <tr className="border-b border-slate-700 bg-sky-950/40 text-slate-200">
+                                      <th className="p-2.5">來源 `Fortigate` 原始檔案名稱 (`*.txt`)</th>
+                                      <th className="p-2.5">清單類別</th>
+                                      <th className="p-2.5">命中型態</th>
+                                      <th className="p-2.5">檔案內對應行號與 `#` 註解說明</th>
+                                      <th className="p-2.5">維護方式與頻率</th>
+                                      <th className="p-2.5">名單用途說明</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-800/80">
+                                    {allowList.map((m) => (
+                                      <tr key={m.feedId} className="hover:bg-slate-800/40">
+                                        <td className="p-2.5 font-mono font-extrabold text-sky-300 whitespace-nowrap">
+                                          📄 {m.fileName}
+                                        </td>
+                                        <td className="p-2.5 whitespace-nowrap text-slate-300">
+                                          {m.categoryLabel}
+                                        </td>
+                                        <td className="p-2.5 whitespace-nowrap">
+                                          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                                            {m.matchType === 'exact_ip'
+                                              ? '精確 IP 登錄'
+                                              : m.matchType === 'cidr_subnet'
+                                              ? 'CIDR 網段登錄'
+                                              : m.matchType === 'comment_host'
+                                              ? '註解網址/主機命中'
+                                              : '精確項目登錄'}
+                                          </span>
+                                        </td>
+                                        <td className="p-2.5 font-mono text-emerald-300">
+                                          <div>
+                                            {m.matchedRule}{' '}
+                                            {m.lineNumber ? (
+                                              <span className="text-slate-400">
+                                                (第 {m.lineNumber} 行)
+                                              </span>
+                                            ) : null}
+                                          </div>
+                                          {m.commentNote && (
+                                            <div className="text-[11px] text-amber-300 mt-0.5">
+                                              📌 檔案內註解：<code>#{m.commentNote}</code>
+                                            </div>
+                                          )}
+                                        </td>
+                                        <td className="p-2.5 text-slate-300 whitespace-nowrap">
+                                          {m.generatorLabel} ({m.cadenceLabel})
+                                        </td>
+                                        <td className="p-2.5 text-slate-300">
+                                          <div className="font-semibold text-slate-200">{m.description}</div>
+                                          <div className="text-[11px] text-slate-400">{m.retentionPolicy}</div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+
+                            <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <strong className="text-white">💡 查詢結論與處置指引：</strong>{' '}
+                                {item.advisory}
+                              </div>
+                              {item.isValidIp && (
+                                <span className="font-mono text-[11px] text-slate-400">
+                                  本地歷史查詢：<code>python query_ip_history.py {item.query} --days 7</code>
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1482,20 +1688,23 @@ export default function ThreatDefenseDashboardPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold text-white">
-                  📈 貳、長期協防黑名單 (`AutoLongTerm-Blocklist-v1`) 動態趨勢與近 24 小時異動
+                  📈 貳、長期協防黑名單 (`g-BLACK_IP_AutoLongTerm-v1.txt`) 動態趨勢與近 24 小時異動
                 </h2>
                 <p className="text-xs text-slate-400">
                   由版本控管歷史 (`total= added= removed=`) 即時解析，無須逐筆暴露 IP 內容
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-100 border border-sky-300 shadow-sm">
+                <span className="text-[11px] font-extrabold text-slate-700 px-1.5">
+                  圖表選項：
+                </span>
                 <button
                   type="button"
                   onClick={() => setChartMode('cumulative')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     chartMode === 'cumulative'
-                      ? 'bg-sky-500 text-white'
-                      : 'bg-slate-800 text-slate-300'
+                      ? 'bg-sky-600 text-white shadow'
+                      : 'bg-white text-slate-800 hover:bg-sky-50 border border-slate-300'
                   }`}
                 >
                   累計總筆數趨勢 (Total)
@@ -1503,10 +1712,10 @@ export default function ThreatDefenseDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setChartMode('added')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     chartMode === 'added'
-                      ? 'bg-sky-500 text-white'
-                      : 'bg-slate-800 text-slate-300'
+                      ? 'bg-sky-600 text-white shadow'
+                      : 'bg-white text-slate-800 hover:bg-sky-50 border border-slate-300'
                   }`}
                 >
                   單次新增筆數拆解 (Added)
@@ -1766,13 +1975,16 @@ export default function ThreatDefenseDashboardPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold text-white">
-                  📂 參、全庫資安情資與治理清單分類彙總表
+                  📂 參、全庫資安情資與治理清單分類彙總表（100% 對應 `Fortigate` 原始檔案名稱）
                 </h2>
                 <p className="text-xs text-slate-400">
-                  依據資安去識別化規範：所有清單均以標準化功能名稱呈現，內網微隔離與白名單資產僅統計有效筆數，不提供原始下載連結或明細
+                  依據雙庫名稱對齊規範：所有清單檔案名稱與來源儲存庫 <code>Fortigate</code> 之 <code>*.txt</code> / <code>*.html</code> 100% 一致，並可於「🔍 IP 封鎖狀態查詢」直接檢索對應內容。
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs">
+              <div className="flex flex-wrap items-center gap-2 text-xs p-2 rounded-xl bg-slate-100 border border-sky-300 shadow-sm">
+                <span className="text-[11px] font-extrabold text-slate-700 px-1">
+                  類別篩選選項：
+                </span>
                 {[
                   { id: 'all', label: `全部類別 (${snapshot?.totalFeedsCount ?? 26} 檔)` },
                   { id: 'ext_ip', label: '🔴 外部威脅 IP' },
@@ -1786,10 +1998,10 @@ export default function ThreatDefenseDashboardPage() {
                     onClick={() =>
                       setSelectedCategory(btn.id as 'all' | FeedCategory)
                     }
-                    className={`px-3 py-1.5 rounded-lg font-bold ${
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                       selectedCategory === btn.id
-                        ? 'bg-sky-500 text-white'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        ? 'bg-sky-600 text-white shadow'
+                        : 'bg-white text-slate-800 hover:bg-sky-50 border border-slate-300'
                     }`}
                   >
                     {btn.label}
@@ -1828,7 +2040,7 @@ export default function ThreatDefenseDashboardPage() {
                     <thead>
                       <tr className="border-b border-slate-700 bg-slate-900/60 text-slate-300">
                         <th className="p-3">防護類別</th>
-                        <th className="p-3">清單功能識別名稱</th>
+                        <th className="p-3">來源 `Fortigate` 原始檔案名稱 (`*.txt` / `*.html`)</th>
                         <th className="p-3 text-right">現行有效筆數</th>
                         <th className="p-3 text-right">與長期清單重疊數</th>
                         <th className="p-3 text-right">資料量大小</th>
@@ -1844,14 +2056,8 @@ export default function ThreatDefenseDashboardPage() {
                               {f.categoryLabel}
                             </span>
                           </td>
-                          <td className="p-3 font-mono text-white">
-                            {f.isSensitiveInternal ? (
-                              <span title="內部/保護資產清冊僅顯示去識別化統計">
-                                🔒 {f.displayName}
-                              </span>
-                            ) : (
-                              <span>{f.displayName}</span>
-                            )}
+                          <td className="p-3 font-mono font-bold text-white whitespace-nowrap">
+                            <span>📄 {f.displayName}</span>
                             {f.headerMismatch && (
                               <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]">
                                 標頭差異 ({f.headerCount})

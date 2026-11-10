@@ -3,8 +3,8 @@ import {
   parseFeedContent,
   ipv4ToUint32,
   parseCidrRange,
-  isCampusOrPrivateIPv4,
   ParsedCidrRange,
+  EntryMetaInfo,
 } from './parsers';
 import {
   buildLongTermTrend,
@@ -45,16 +45,27 @@ export type {
   IpQueryResponsePayload,
 };
 
+interface IndexedCidrEntry extends ParsedCidrRange {
+  lineNumber: number;
+  comment: string | null;
+}
+
 interface FeedIpIndex {
   id: string;
+  fileName: string;
   displayName: string;
+  category: FeedCategory;
   categoryLabel: string;
+  kind: FeedKind;
   generator: GeneratorScriptId;
   generatorLabel: string;
   cadenceLabel: string;
+  description: string;
   isBlocklist: boolean;
-  exactIps: Set<string>;
-  cidrRanges: ParsedCidrRange[];
+  exactIps: Map<string, EntryMetaInfo>;
+  cidrRanges: IndexedCidrEntry[];
+  fqdnEntries: Map<string, EntryMetaInfo>;
+  macEntries: Map<string, EntryMetaInfo>;
 }
 
 // In-memory state for ETag conditional requests, IP lookup index, and stale-on-error fallback
@@ -166,7 +177,10 @@ export function computeSnapshotFromRawInputs(params: {
       }
     }
 
-    if (def.isBlocklist) {
+    if (
+      def.category === 'ext_ip' ||
+      (def.category === 'fqdn_mail' && def.kind !== 'html')
+    ) {
       rawExternalBlockEntries += p.count;
     } else if (def.category === 'internal' || def.category === 'allow') {
       protectedAndInternalEntries += p.count;
@@ -187,7 +201,7 @@ export function computeSnapshotFromRawInputs(params: {
 
     feedItems.push({
       id: def.id,
-      displayName: def.displayName,
+      displayName: def.file,
       category: def.category,
       categoryLabel: def.categoryLabel,
       kind: def.kind,
@@ -205,47 +219,64 @@ export function computeSnapshotFromRawInputs(params: {
     });
   }
 
-  // Build in-memory IP/CIDR lookup index for external blocklists + global allowlist/exclude
+  // Build in-memory lookup index across ALL 25 data feeds in Fortigate repository
   const newLookupIndex = new Map<string, FeedIpIndex>();
   for (const def of FEEDS_MANIFEST) {
-    const isLookupTarget =
-      (def.isBlocklist && (def.kind === 'ip' || def.kind === 'cidr')) ||
-      def.id === 'allow_global' ||
-      def.id === 'longterm_exclude';
-    if (!isLookupTarget) continue;
+    if (def.kind === 'html') continue;
 
     const p = parsedMap.get(def.id);
     if (!p) continue;
 
-    const exactIps = new Set<string>();
-    const cidrRanges: ParsedCidrRange[] = [];
+    const exactIps = new Map<string, EntryMetaInfo>();
+    const cidrRanges: IndexedCidrEntry[] = [];
+    const fqdnEntries = new Map<string, EntryMetaInfo>();
+    const macEntries = new Map<string, EntryMetaInfo>();
 
     for (const entry of p.entriesSet) {
-      if (entry.includes('/')) {
+      const meta = p.entryMetaMap.get(entry) ?? {
+        lineNumber: 0,
+        comment: null,
+      };
+
+      if (def.kind === 'fqdn') {
+        fqdnEntries.set(entry.toLowerCase(), meta);
+      } else if (def.kind === 'mac') {
+        macEntries.set(entry.toUpperCase(), meta);
+      } else if (entry.includes('/')) {
         const bare = entry.endsWith('/32') ? entry.slice(0, -3) : null;
         if (bare) {
-          exactIps.add(bare);
+          exactIps.set(bare, meta);
         } else {
           const parsedCidr = parseCidrRange(entry);
           if (parsedCidr) {
-            cidrRanges.push(parsedCidr);
+            cidrRanges.push({
+              ...parsedCidr,
+              lineNumber: meta.lineNumber,
+              comment: meta.comment,
+            });
           }
         }
       } else {
-        exactIps.add(entry);
+        exactIps.set(entry, meta);
       }
     }
 
     newLookupIndex.set(def.id, {
       id: def.id,
-      displayName: def.displayName,
+      fileName: def.file,
+      displayName: def.file,
+      category: def.category,
       categoryLabel: def.categoryLabel,
+      kind: def.kind,
       generator: def.generator,
       generatorLabel: def.generatorLabel,
       cadenceLabel: def.cadenceLabel,
+      description: def.description,
       isBlocklist: def.isBlocklist,
       exactIps,
       cidrRanges,
+      fqdnEntries,
+      macEntries,
     });
   }
   cachedIpLookupIndex = newLookupIndex;
@@ -253,10 +284,10 @@ export function computeSnapshotFromRawInputs(params: {
   parsedMap.clear();
 
   const categoryOrder: { category: FeedCategory; label: string }[] = [
-    { category: 'ext_ip', label: '🔴 封鎖 — 外部威脅 IP 清單' },
-    { category: 'fqdn_mail', label: '📧 封鎖 — 郵件網段與惡意網域清單' },
-    { category: 'internal', label: '🖥️ 內網設備微隔離控管清單（僅顯示筆數）' },
-    { category: 'allow', label: '✅ 白名單與重要服務資產清冊（僅顯示筆數）' },
+    { category: 'ext_ip', label: '🔴 外部威脅 IP 封鎖清單 (10 份)' },
+    { category: 'fqdn_mail', label: '📧 郵件與惡意網域封鎖清單 (5 份)' },
+    { category: 'internal', label: '🖥️ 內部設備封鎖控管清單 (4 份)' },
+    { category: 'allow', label: '✅ 允許清單與服務維護名單 (7 份)' },
   ];
 
   const categories: CategorySummary[] = categoryOrder.map(({ category, label }) => {
@@ -498,35 +529,127 @@ export async function getDashboardSnapshot(
   }
 }
 
-function getRetentionPolicyByGenerator(generator: GeneratorScriptId): string {
-  switch (generator) {
+function getRetentionPolicyByFeed(feedIdx: FeedIpIndex): string {
+  if (!feedIdx.isBlocklist) {
+    if (feedIdx.id === 'allow_global_infra') {
+      return '全域實體允許清單 (ncloud_allowlist.txt) — 自動化腳本強制排除，絕不列入外部封鎖';
+    }
+    if (feedIdx.id === 'allow_longterm_exclude') {
+      return '長期黑名單手動剔除清單 (longterm_exclude.txt) — 專供排除於 g-BLACK_IP_AutoLongTerm-v1.txt 之外';
+    }
+    return '服務維護與允許清單（人工造冊維護之重要網站或維運主機）';
+  }
+
+  switch (feedIdx.generator) {
     case 'longterm':
       return '30 天 TTL 自動退場（自 last_seen 起滿 30 天自動移除；若需立即排除請加入 longterm_exclude.txt 或 ncloud_allowlist.txt）';
     case 'topn':
       return '每日 00:00 自動歸零重算 + 每 10 分鐘增量更新（若需永久豁免請加入 ncloud_allowlist.txt）';
     case 'emailsys':
-      return '每 10 分鐘依郵件閘道統計動態更新 CIDR 封鎖集';
+      return '每 10 分鐘依郵件系統封鎖統計動態更新';
     case 'ntech':
-      return '每 10 分鐘依外部聯防 / CERT 情資同步更新';
+      return '每 10 分鐘依 CERT 威脅情資同步更新';
     case 'manual':
     default:
-      return '人工維護黑名單（需由維運人員於版本庫手動移除）';
+      return '人工維護封鎖/控管清單（需由管理員於版本庫手動調整）';
   }
 }
 
-function checkIndexMatch(
+function checkFeedMatch(
   idx: FeedIpIndex,
+  rawQuery: string,
   bareIp: string,
-  ipInt: number
-): { matchType: 'exact_ip' | 'cidr_subnet'; matchedRule: string } | null {
-  if (idx.exactIps.has(bareIp)) {
-    return { matchType: 'exact_ip', matchedRule: bareIp };
-  }
-  for (const r of idx.cidrRanges) {
-    if (((ipInt & r.maskInt) >>> 0) === r.netInt) {
-      return { matchType: 'cidr_subnet', matchedRule: r.cidr };
+  ipInt: number | null
+): {
+  matchType: IpQueryFeedMatch['matchType'];
+  matchedRule: string;
+  lineNumber: number | null;
+  commentNote: string | null;
+} | null {
+  // 1. IPv4 / CIDR match
+  if (ipInt !== null) {
+    const exactMeta = idx.exactIps.get(bareIp);
+    if (exactMeta) {
+      return {
+        matchType: 'exact_ip',
+        matchedRule: bareIp,
+        lineNumber: exactMeta.lineNumber || null,
+        commentNote: exactMeta.comment,
+      };
+    }
+    for (const r of idx.cidrRanges) {
+      if (((ipInt & r.maskInt) >>> 0) === r.netInt) {
+        return {
+          matchType: 'cidr_subnet',
+          matchedRule: r.cidr,
+          lineNumber: r.lineNumber || null,
+          commentNote: r.comment,
+        };
+      }
     }
   }
+
+  // 2. MAC address match
+  const macCandidate = rawQuery.trim().toUpperCase().replace(/-/g, ':');
+  if (/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(macCandidate)) {
+    const macMeta = idx.macEntries.get(macCandidate);
+    if (macMeta) {
+      return {
+        matchType: 'exact_mac',
+        matchedRule: macCandidate,
+        lineNumber: macMeta.lineNumber || null,
+        commentNote: macMeta.comment,
+      };
+    }
+  }
+
+  // 3. FQDN / Domain / Hostname comment match
+  const cleanedHost = rawQuery
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
+
+  if (cleanedHost && ipInt === null) {
+    const exactFqdn = idx.fqdnEntries.get(cleanedHost);
+    if (exactFqdn) {
+      return {
+        matchType: 'exact_fqdn',
+        matchedRule: cleanedHost,
+        lineNumber: exactFqdn.lineNumber || null,
+        commentNote: exactFqdn.comment,
+      };
+    }
+
+    for (const [fqdnRule, meta] of idx.fqdnEntries.entries()) {
+      if (fqdnRule.startsWith('*.')) {
+        const suffix = fqdnRule.slice(2);
+        if (cleanedHost === suffix || cleanedHost.endsWith('.' + suffix)) {
+          return {
+            matchType: 'wildcard_fqdn',
+            matchedRule: fqdnRule,
+            lineNumber: meta.lineNumber || null,
+            commentNote: meta.comment,
+          };
+        }
+      }
+    }
+
+    // Also check if hostname appears in comments of IP lists (e.g., NTNU-FormalWebsites-v2.txt, Security-UCP-maintenance-v1.txt)
+    if (cleanedHost.length >= 3) {
+      for (const [ipEntry, meta] of idx.exactIps.entries()) {
+        if (meta.comment && meta.comment.toLowerCase().includes(cleanedHost)) {
+          return {
+            matchType: 'comment_host',
+            matchedRule: ipEntry,
+            lineNumber: meta.lineNumber || null,
+            commentNote: meta.comment,
+          };
+        }
+      }
+    }
+  }
+
   return null;
 }
 
@@ -544,138 +667,139 @@ export async function queryIpsAgainstFeeds(
     )
   ).slice(0, 50);
 
-  const allowGlobalIdx = indexMap.get('allow_global');
-  const longtermExcludeIdx = indexMap.get('longterm_exclude');
-
   const results: IpQueryResultItem[] = [];
   let blockedCount = 0;
+  let inAllowlistCount = 0;
   let cleanCount = 0;
 
   for (const rawToken of cleanedTokens) {
     const bareIp = rawToken.endsWith('/32') ? rawToken.slice(0, -3) : rawToken;
     const ipInt = ipv4ToUint32(bareIp);
+    const isCidrInput = rawToken.includes('/') && parseCidrRange(rawToken) !== null;
+    const isMacInput = /^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$/.test(rawToken);
+    const isHostnameInput =
+      ipInt === null &&
+      !isCidrInput &&
+      !isMacInput &&
+      /[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[\u4e00-\u9fa5]{2,}/.test(rawToken);
 
-    if (ipInt === null) {
+    if (ipInt === null && !isCidrInput && !isMacInput && !isHostnameInput) {
       results.push({
         query: rawToken,
         isValidIp: false,
         status: 'invalid',
-        statusLabel: '⚪ 格式無效 (請輸入標準 IPv4 位址)',
+        statusLabel: '⚪ 格式無效（請輸入 IPv4、FQDN 網域或 MAC 位址）',
         isAllowlisted: false,
         isExcludedFromLongTerm: false,
-        matches: [],
-        advisory: '請輸入有效的 IPv4 點分十進位位址（例如：60.251.148.94）。',
-      });
-      continue;
-    }
-
-    if (isCampusOrPrivateIPv4(bareIp)) {
-      cleanCount += 1;
-      results.push({
-        query: bareIp,
-        isValidIp: true,
-        status: 'internal_protected',
-        statusLabel: '🛡️ 內部/私網保留網段 (系統預設保護)',
-        isAllowlisted: true,
-        isExcludedFromLongTerm: true,
+        blockMatches: [],
+        allowMatches: [],
         matches: [],
         advisory:
-          '此 IP 屬於受保護內部網段或 RFC1918 私網保留位址。所有自動化腳本均已強制內建排除規則，絕不會列入外部黑名單。',
+          '請輸入有效的 IPv4 位址（如 176.123.1.163 或 140.122.251.74）、FQDN 網域（如 granestichs.top）或 MAC 位址。',
       });
       continue;
     }
 
-    const isAllowlisted = allowGlobalIdx
-      ? checkIndexMatch(allowGlobalIdx, bareIp, ipInt) !== null
-      : false;
-    const isExcludedFromLongTerm = longtermExcludeIdx
-      ? checkIndexMatch(longtermExcludeIdx, bareIp, ipInt) !== null
-      : false;
+    const effectiveIpInt =
+      ipInt ?? (isCidrInput ? ipv4ToUint32(rawToken.split('/')[0]) : null);
+    const effectiveBareIp = isCidrInput ? rawToken.split('/')[0] : bareIp;
 
-    const matches: IpQueryFeedMatch[] = [];
+    const blockMatches: IpQueryFeedMatch[] = [];
+    const allowMatches: IpQueryFeedMatch[] = [];
+
     for (const [, feedIdx] of indexMap.entries()) {
-      if (!feedIdx.isBlocklist) continue;
-      const m = checkIndexMatch(feedIdx, bareIp, ipInt);
+      const m = checkFeedMatch(
+        feedIdx,
+        rawToken,
+        effectiveBareIp,
+        effectiveIpInt
+      );
       if (m) {
-        matches.push({
+        const matchObj: IpQueryFeedMatch = {
           feedId: feedIdx.id,
-          displayName: feedIdx.displayName,
+          fileName: feedIdx.fileName,
+          displayName: feedIdx.fileName,
+          category: feedIdx.category,
           categoryLabel: feedIdx.categoryLabel,
+          isBlocklist: feedIdx.isBlocklist,
           generatorLabel: feedIdx.generatorLabel,
           cadenceLabel: feedIdx.cadenceLabel,
+          description: feedIdx.description,
           matchType: m.matchType,
           matchedRule: m.matchedRule,
-          retentionPolicy: getRetentionPolicyByGenerator(feedIdx.generator),
-        });
+          lineNumber: m.lineNumber,
+          commentNote: m.commentNote,
+          retentionPolicy: getRetentionPolicyByFeed(feedIdx),
+        };
+        if (feedIdx.isBlocklist) {
+          blockMatches.push(matchObj);
+        } else {
+          allowMatches.push(matchObj);
+        }
       }
     }
 
-    if (matches.length > 0) {
+    const isAllowlisted = allowMatches.some(
+      (m) => m.feedId === 'allow_global_infra'
+    );
+    const isExcludedFromLongTerm = allowMatches.some(
+      (m) => m.feedId === 'allow_longterm_exclude'
+    );
+    const allMatches = [...blockMatches, ...allowMatches];
+
+    if (blockMatches.length > 0) {
       blockedCount += 1;
-      const hasLongTerm = matches.some((m) => m.feedId === 'longterm_auto');
-      const hasTopN = matches.some((m) => m.feedId.startsWith('traffic_'));
-      const hasCidr = matches.some((m) => m.matchType === 'cidr_subnet');
-
-      const notes: string[] = [];
-      if (hasLongTerm) {
-        notes.push(
-          '已列入「自動化長期黑名單 (AutoLongTerm-Blocklist-v1)」，預設自最後觀測日起算 30 天 TTL 後自動退場；若確認為正常業務 IP 需立即解封，請將其加入 longterm_exclude.txt 或 ncloud_allowlist.txt。'
-        );
-      }
-      if (hasTopN) {
-        notes.push(
-          '已列入「當日流量威脅清單 (TopN)」，將於每日 00:00 自動歸零重算；若跨 3 個日曆日重複出現將晉升至長期黑名單。'
-        );
-      }
-      if (hasCidr) {
-        notes.push(
-          '命中郵件閘道 CIDR 網段封鎖（非單點 IP 規則，而是落入被封鎖之子網段範圍內）。'
-        );
-      }
-      if (notes.length === 0) {
-        notes.push(
-          '目前存在於外部封鎖清單中，邊界防火牆將依據 EDL 同步機制予以阻斷。'
-        );
-      }
+      const blockedFileNames = blockMatches.map((m) => m.fileName).join('、');
+      const allowNote =
+        allowMatches.length > 0
+          ? `（同時亦列於非封鎖名單：${allowMatches
+              .map((m) => m.fileName)
+              .join('、')}）`
+          : '';
 
       results.push({
-        query: bareIp,
-        isValidIp: true,
+        query: rawToken,
+        isValidIp: effectiveIpInt !== null,
         status: 'blocked',
-        statusLabel: `🔴 處於封鎖中 (命中 ${matches.length} 份清單)`,
+        statusLabel: `🔴 在封鎖清單內（命中 ${blockMatches.length} 份名單：${blockedFileNames}）`,
         isAllowlisted,
         isExcludedFromLongTerm,
-        matches,
-        advisory: notes.join(' '),
+        blockMatches,
+        allowMatches,
+        matches: allMatches,
+        advisory: `此目標目前落在封鎖/管制清單【${blockedFileNames}】內${allowNote}。請參閱下方表格檢視所在檔案行號、備註與退場機制。`,
       });
-    } else if (isAllowlisted || isExcludedFromLongTerm) {
+    } else if (allowMatches.length > 0) {
+      inAllowlistCount += 1;
       cleanCount += 1;
+      const allowFileNames = allowMatches.map((m) => m.fileName).join('、');
+
       results.push({
-        query: bareIp,
-        isValidIp: true,
-        status: 'allowlisted',
-        statusLabel: '🛡️ 白名單/剔除清單保護中 (未封鎖)',
+        query: rawToken,
+        isValidIp: effectiveIpInt !== null,
+        status: 'in_allowlist_only',
+        statusLabel: `🟢 不在封鎖清單內 — 位於允許/網站/維護名單（${allowFileNames}）`,
         isAllowlisted,
         isExcludedFromLongTerm,
-        matches: [],
-        advisory: `此 IP 目前未在任何黑名單中，且已受 ${
-          isAllowlisted ? '全域允許清單 (ncloud_allowlist.txt)' : ''
-        }${isAllowlisted && isExcludedFromLongTerm ? ' 與 ' : ''}${
-          isExcludedFromLongTerm ? '長期黑名單手動剔除清單 (longterm_exclude.txt)' : ''
-        } 保護。`,
+        blockMatches: [],
+        allowMatches,
+        matches: allMatches,
+        advisory: `此目標不在任何封鎖清單內，且明確登錄於【${allowFileNames}】名單中。`,
       });
     } else {
       cleanCount += 1;
       results.push({
-        query: bareIp,
-        isValidIp: true,
-        status: 'clean',
-        statusLabel: '🟢 未在最新黑名單中 (0 次封鎖)',
+        query: rawToken,
+        isValidIp: effectiveIpInt !== null,
+        status: 'not_in_any_list',
+        statusLabel: '⚪ 不在封鎖清單內（未出現於 Fortigate 全庫 25 份 *.txt 名單）',
         isAllowlisted: false,
         isExcludedFromLongTerm: false,
+        blockMatches: [],
+        allowMatches: [],
         matches: [],
         advisory:
-          '此 IP 目前未出現在任何現行外部威脅 IP 封鎖清單或郵件 CIDR 封鎖網段中。',
+          '經比對 Fortigate 儲存庫內全部 25 份清單檔案（含外部黑名單、郵件 CIDR/FQDN、內部設備封鎖及網站/白名單清冊），均未包含此項目。',
       });
     }
   }
@@ -691,7 +815,9 @@ export async function queryIpsAgainstFeeds(
     queriedAtDisplay,
     totalQueried: results.length,
     blockedCount,
+    inAllowlistCount,
     cleanCount,
+    scannedFilesCount: indexMap.size,
     results,
   };
 }
