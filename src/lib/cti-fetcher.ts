@@ -1,5 +1,11 @@
 import { FEEDS_MANIFEST, TOTAL_DAILY_CRON_RUNS } from './feeds.manifest';
-import { parseFeedContent } from './parsers';
+import {
+  parseFeedContent,
+  ipv4ToUint32,
+  parseCidrRange,
+  isCampusOrPrivateIPv4,
+  ParsedCidrRange,
+} from './parsers';
 import {
   buildLongTermTrend,
   evaluatePipelineHealth,
@@ -17,6 +23,9 @@ import type {
   CategorySummary,
   CapacityStatus,
   DashboardSnapshot,
+  IpQueryFeedMatch,
+  IpQueryResultItem,
+  IpQueryResponsePayload,
 } from './types';
 
 export type {
@@ -31,12 +40,28 @@ export type {
   CategorySummary,
   CapacityStatus,
   DashboardSnapshot,
+  IpQueryFeedMatch,
+  IpQueryResultItem,
+  IpQueryResponsePayload,
 };
 
-// In-memory state for ETag conditional requests and stale-on-error fallback
+interface FeedIpIndex {
+  id: string;
+  displayName: string;
+  categoryLabel: string;
+  generator: GeneratorScriptId;
+  generatorLabel: string;
+  cadenceLabel: string;
+  isBlocklist: boolean;
+  exactIps: Set<string>;
+  cidrRanges: ParsedCidrRange[];
+}
+
+// In-memory state for ETag conditional requests, IP lookup index, and stale-on-error fallback
 let cachedHeadEtag: string | null = null;
 let cachedHeadSha: string | null = null;
 let cachedSnapshot: DashboardSnapshot | null = null;
+let cachedIpLookupIndex: Map<string, FeedIpIndex> | null = null;
 let lastSuccessfulFetchMs = 0;
 
 const REVALIDATE_INTERVAL_MS = 300 * 1000; // 5 minutes
@@ -179,6 +204,51 @@ export function computeSnapshotFromRawInputs(params: {
       overlapWithLongTerm,
     });
   }
+
+  // Build in-memory IP/CIDR lookup index for external blocklists + global allowlist/exclude
+  const newLookupIndex = new Map<string, FeedIpIndex>();
+  for (const def of FEEDS_MANIFEST) {
+    const isLookupTarget =
+      (def.isBlocklist && (def.kind === 'ip' || def.kind === 'cidr')) ||
+      def.id === 'allow_global' ||
+      def.id === 'longterm_exclude';
+    if (!isLookupTarget) continue;
+
+    const p = parsedMap.get(def.id);
+    if (!p) continue;
+
+    const exactIps = new Set<string>();
+    const cidrRanges: ParsedCidrRange[] = [];
+
+    for (const entry of p.entriesSet) {
+      if (entry.includes('/')) {
+        const bare = entry.endsWith('/32') ? entry.slice(0, -3) : null;
+        if (bare) {
+          exactIps.add(bare);
+        } else {
+          const parsedCidr = parseCidrRange(entry);
+          if (parsedCidr) {
+            cidrRanges.push(parsedCidr);
+          }
+        }
+      } else {
+        exactIps.add(entry);
+      }
+    }
+
+    newLookupIndex.set(def.id, {
+      id: def.id,
+      displayName: def.displayName,
+      categoryLabel: def.categoryLabel,
+      generator: def.generator,
+      generatorLabel: def.generatorLabel,
+      cadenceLabel: def.cadenceLabel,
+      isBlocklist: def.isBlocklist,
+      exactIps,
+      cidrRanges,
+    });
+  }
+  cachedIpLookupIndex = newLookupIndex;
 
   parsedMap.clear();
 
@@ -427,3 +497,202 @@ export async function getDashboardSnapshot(
     throw err;
   }
 }
+
+function getRetentionPolicyByGenerator(generator: GeneratorScriptId): string {
+  switch (generator) {
+    case 'longterm':
+      return '30 天 TTL 自動退場（自 last_seen 起滿 30 天自動移除；若需立即排除請加入 longterm_exclude.txt 或 ncloud_allowlist.txt）';
+    case 'topn':
+      return '每日 00:00 自動歸零重算 + 每 10 分鐘增量更新（若需永久豁免請加入 ncloud_allowlist.txt）';
+    case 'emailsys':
+      return '每 10 分鐘依郵件閘道統計動態更新 CIDR 封鎖集';
+    case 'ntech':
+      return '每 10 分鐘依外部聯防 / CERT 情資同步更新';
+    case 'manual':
+    default:
+      return '人工維護黑名單（需由維運人員於版本庫手動移除）';
+  }
+}
+
+function checkIndexMatch(
+  idx: FeedIpIndex,
+  bareIp: string,
+  ipInt: number
+): { matchType: 'exact_ip' | 'cidr_subnet'; matchedRule: string } | null {
+  if (idx.exactIps.has(bareIp)) {
+    return { matchType: 'exact_ip', matchedRule: bareIp };
+  }
+  for (const r of idx.cidrRanges) {
+    if (((ipInt & r.maskInt) >>> 0) === r.netInt) {
+      return { matchType: 'cidr_subnet', matchedRule: r.cidr };
+    }
+  }
+  return null;
+}
+
+export async function queryIpsAgainstFeeds(
+  rawQueries: string[]
+): Promise<IpQueryResponsePayload> {
+  const snapshot = await getDashboardSnapshot(false);
+  const indexMap = cachedIpLookupIndex ?? new Map<string, FeedIpIndex>();
+
+  const cleanedTokens = Array.from(
+    new Set(
+      rawQueries
+        .map((q) => q.trim())
+        .filter((q) => q.length > 0)
+    )
+  ).slice(0, 50);
+
+  const allowGlobalIdx = indexMap.get('allow_global');
+  const longtermExcludeIdx = indexMap.get('longterm_exclude');
+
+  const results: IpQueryResultItem[] = [];
+  let blockedCount = 0;
+  let cleanCount = 0;
+
+  for (const rawToken of cleanedTokens) {
+    const bareIp = rawToken.endsWith('/32') ? rawToken.slice(0, -3) : rawToken;
+    const ipInt = ipv4ToUint32(bareIp);
+
+    if (ipInt === null) {
+      results.push({
+        query: rawToken,
+        isValidIp: false,
+        status: 'invalid',
+        statusLabel: '⚪ 格式無效 (請輸入標準 IPv4 位址)',
+        isAllowlisted: false,
+        isExcludedFromLongTerm: false,
+        matches: [],
+        advisory: '請輸入有效的 IPv4 點分十進位位址（例如：60.251.148.94）。',
+      });
+      continue;
+    }
+
+    if (isCampusOrPrivateIPv4(bareIp)) {
+      cleanCount += 1;
+      results.push({
+        query: bareIp,
+        isValidIp: true,
+        status: 'internal_protected',
+        statusLabel: '🛡️ 內部/私網保留網段 (系統預設保護)',
+        isAllowlisted: true,
+        isExcludedFromLongTerm: true,
+        matches: [],
+        advisory:
+          '此 IP 屬於受保護內部網段或 RFC1918 私網保留位址。所有自動化腳本均已強制內建排除規則，絕不會列入外部黑名單。',
+      });
+      continue;
+    }
+
+    const isAllowlisted = allowGlobalIdx
+      ? checkIndexMatch(allowGlobalIdx, bareIp, ipInt) !== null
+      : false;
+    const isExcludedFromLongTerm = longtermExcludeIdx
+      ? checkIndexMatch(longtermExcludeIdx, bareIp, ipInt) !== null
+      : false;
+
+    const matches: IpQueryFeedMatch[] = [];
+    for (const [, feedIdx] of indexMap.entries()) {
+      if (!feedIdx.isBlocklist) continue;
+      const m = checkIndexMatch(feedIdx, bareIp, ipInt);
+      if (m) {
+        matches.push({
+          feedId: feedIdx.id,
+          displayName: feedIdx.displayName,
+          categoryLabel: feedIdx.categoryLabel,
+          generatorLabel: feedIdx.generatorLabel,
+          cadenceLabel: feedIdx.cadenceLabel,
+          matchType: m.matchType,
+          matchedRule: m.matchedRule,
+          retentionPolicy: getRetentionPolicyByGenerator(feedIdx.generator),
+        });
+      }
+    }
+
+    if (matches.length > 0) {
+      blockedCount += 1;
+      const hasLongTerm = matches.some((m) => m.feedId === 'longterm_auto');
+      const hasTopN = matches.some((m) => m.feedId.startsWith('traffic_'));
+      const hasCidr = matches.some((m) => m.matchType === 'cidr_subnet');
+
+      const notes: string[] = [];
+      if (hasLongTerm) {
+        notes.push(
+          '已列入「自動化長期黑名單 (AutoLongTerm-Blocklist-v1)」，預設自最後觀測日起算 30 天 TTL 後自動退場；若確認為正常業務 IP 需立即解封，請將其加入 longterm_exclude.txt 或 ncloud_allowlist.txt。'
+        );
+      }
+      if (hasTopN) {
+        notes.push(
+          '已列入「當日流量威脅清單 (TopN)」，將於每日 00:00 自動歸零重算；若跨 3 個日曆日重複出現將晉升至長期黑名單。'
+        );
+      }
+      if (hasCidr) {
+        notes.push(
+          '命中郵件閘道 CIDR 網段封鎖（非單點 IP 規則，而是落入被封鎖之子網段範圍內）。'
+        );
+      }
+      if (notes.length === 0) {
+        notes.push(
+          '目前存在於外部封鎖清單中，邊界防火牆將依據 EDL 同步機制予以阻斷。'
+        );
+      }
+
+      results.push({
+        query: bareIp,
+        isValidIp: true,
+        status: 'blocked',
+        statusLabel: `🔴 處於封鎖中 (命中 ${matches.length} 份清單)`,
+        isAllowlisted,
+        isExcludedFromLongTerm,
+        matches,
+        advisory: notes.join(' '),
+      });
+    } else if (isAllowlisted || isExcludedFromLongTerm) {
+      cleanCount += 1;
+      results.push({
+        query: bareIp,
+        isValidIp: true,
+        status: 'allowlisted',
+        statusLabel: '🛡️ 白名單/剔除清單保護中 (未封鎖)',
+        isAllowlisted,
+        isExcludedFromLongTerm,
+        matches: [],
+        advisory: `此 IP 目前未在任何黑名單中，且已受 ${
+          isAllowlisted ? '全域允許清單 (ncloud_allowlist.txt)' : ''
+        }${isAllowlisted && isExcludedFromLongTerm ? ' 與 ' : ''}${
+          isExcludedFromLongTerm ? '長期黑名單手動剔除清單 (longterm_exclude.txt)' : ''
+        } 保護。`,
+      });
+    } else {
+      cleanCount += 1;
+      results.push({
+        query: bareIp,
+        isValidIp: true,
+        status: 'clean',
+        statusLabel: '🟢 未在最新黑名單中 (0 次封鎖)',
+        isAllowlisted: false,
+        isExcludedFromLongTerm: false,
+        matches: [],
+        advisory:
+          '此 IP 目前未出現在任何現行外部威脅 IP 封鎖清單或郵件 CIDR 封鎖網段中。',
+      });
+    }
+  }
+
+  const { displayTime: queriedAtDisplay } = formatTaipeiTime(
+    new Date().toISOString()
+  );
+
+  return {
+    headSha: snapshot.headSha,
+    shortHeadSha: snapshot.shortHeadSha,
+    headTimeDisplay: snapshot.headTimeDisplay,
+    queriedAtDisplay,
+    totalQueried: results.length,
+    blockedCount,
+    cleanCount,
+    results,
+  };
+}
+

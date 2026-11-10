@@ -5,6 +5,7 @@ import type {
   DashboardSnapshot,
   FeedCategory,
   LongTermTrendPoint,
+  IpQueryResponsePayload,
 } from '@/lib/types';
 import type { EncryptedVaultPayload } from '@/lib/vault-crypto';
 
@@ -35,10 +36,10 @@ async function deriveWebCryptoKey(passkey: string): Promise<CryptoKey> {
   );
 }
 
-async function decryptVaultPayloadClient(
+async function decryptVaultPayloadClient<T = DashboardSnapshot>(
   encObj: EncryptedVaultPayload,
   passkey: string
-): Promise<DashboardSnapshot> {
+): Promise<T> {
   const cryptoKey = await deriveWebCryptoKey(passkey);
   const iv = base64ToUint8Array(encObj.iv);
   const ciphertext = base64ToUint8Array(encObj.ciphertext);
@@ -48,7 +49,7 @@ async function decryptVaultPayloadClient(
     ciphertext as BufferSource
   );
   const dec = new TextDecoder('utf-8');
-  return JSON.parse(dec.decode(decryptedBuf)) as DashboardSnapshot;
+  return JSON.parse(dec.decode(decryptedBuf)) as T;
 }
 
 function formatBytes(bytes: number): string {
@@ -58,7 +59,7 @@ function formatBytes(bytes: number): string {
   return `${(kb / 1024).toFixed(2)} MB`;
 }
 
-export default function ExecutiveDashboardPage() {
+export default function ThreatDefenseDashboardPage() {
   const [encryptedPayload, setEncryptedPayload] =
     useState<EncryptedVaultPayload | null>(null);
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
@@ -74,7 +75,7 @@ export default function ExecutiveDashboardPage() {
 
   // Interactive UI states
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'trend' | 'inventory' | 'compliance' | 'methodology'
+    'overview' | 'ip_lookup' | 'trend' | 'inventory' | 'compliance' | 'methodology'
   >('overview');
   const [chartMode, setChartMode] = useState<'cumulative' | 'added'>('cumulative');
   const [selectedPoint, setSelectedPoint] = useState<LongTermTrendPoint | null>(
@@ -83,6 +84,14 @@ export default function ExecutiveDashboardPage() {
   const [selectedCategory, setSelectedCategory] = useState<'all' | FeedCategory>(
     'all'
   );
+
+  // IP Block Status Lookup states
+  const [ipQueryInput, setIpQueryInput] = useState<string>('');
+  const [ipQueryResult, setIpQueryResult] =
+    useState<IpQueryResponsePayload | null>(null);
+  const [ipQueryLoading, setIpQueryLoading] = useState<boolean>(false);
+  const [ipQueryError, setIpQueryError] = useState<string | null>(null);
+  const [copiedCmd, setCopiedCmd] = useState<boolean>(false);
 
   const fetchEncryptedSnapshot = useCallback(async () => {
     setLoadingApi(true);
@@ -208,6 +217,54 @@ export default function ExecutiveDashboardPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleQueryIps = async (customInput?: string) => {
+    const targetText = (customInput ?? ipQueryInput).trim();
+    if (!targetText) {
+      setIpQueryError('⚠️ 請先輸入至少一個要查詢的 IPv4 位址！');
+      return;
+    }
+    const savedKey = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!isUnlocked || !savedKey) {
+      setShowVaultModal(true);
+      return;
+    }
+
+    setIpQueryLoading(true);
+    setIpQueryError(null);
+    try {
+      const res = await fetch('/api/query-ip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ queryText: targetText }),
+        cache: 'no-store',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      const decrypted = await decryptVaultPayloadClient<IpQueryResponsePayload>(
+        data as EncryptedVaultPayload,
+        savedKey
+      );
+      setIpQueryResult(decrypted);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setIpQueryError(`查詢失敗：${msg}`);
+    } finally {
+      setIpQueryLoading(false);
+    }
+  };
+
+  const handleCopyLocalCmd = (ips: string[]) => {
+    const validIps = ips.filter((x) => x.trim().length > 0).join(' ');
+    const cmd = `python query_ip_history.py ${validIps || '<IP>'} --days 7`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(cmd);
+      setCopiedCmd(true);
+      setTimeout(() => setCopiedCmd(false), 2000);
+    }
+  };
+
   const filteredFeeds =
     snapshot?.feeds.filter((f) =>
       selectedCategory === 'all' ? true : f.category === selectedCategory
@@ -218,18 +275,18 @@ export default function ExecutiveDashboardPage() {
 
   return (
     <div className="min-h-screen pb-16">
-      {/* Top Legal & Governance Notice Strip */}
+      {/* Top Technical Notice Strip */}
       <aside className="bg-slate-900/90 border-b border-slate-800 px-4 py-2 text-xs text-slate-300">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-amber-400 font-bold">🛡️ 機敏治理聲明：</span>
+            <span className="text-amber-400 font-bold">🛡️ 系統統計聲明：</span>
             <span>
-              <strong>本頁呈現「防護名單規模（Feed Inventory Size）」，而非「設備實際攔截封包次數（Traffic Hits）」。</strong>
-              全量統計快照經伺服器端 <code>AES-256-GCM</code> 加密傳輸，且嚴格排除任何組織識別、設備型號及單一 IP / MAC / 內網資產明細。
+              <strong>本頁呈現「防護清單規模（Feed Inventory Size）」，而非「防火牆實際攔截封包次數（Traffic Hits）」。</strong>
+              全量統計快照與 IP 查詢均經伺服器端 <code>AES-256-GCM</code> 加密傳輸，且嚴格排除任何敏感組織識別與內網資產明細。
             </span>
           </div>
           <span className="font-mono text-sky-400">
-            CTI Collaborative Defense Executive Hub
+            Automated Threat Feeds &amp; Defense System v2.2
           </span>
         </div>
       </aside>
@@ -248,33 +305,44 @@ export default function ExecutiveDashboardPage() {
           </div>
         )}
 
-        {/* Executive Header Container */}
+        {/* System Header Container */}
         <header className="glass-panel p-6">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-5">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-semibold">
-                <span>🏛️ 呈 決策主管 暨 資訊安全監督管理單位 核閱</span>
+                <span>🛡️ 資安威脅情資與自動化封鎖清單監控平台</span>
                 <span>•</span>
-                <span>資通安全情資協防專案報告 (v2.1 動態版)</span>
+                <span>EDL Threat Feeds 動態發布系統 (v2.2)</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-sky-200 to-sky-400 bg-clip-text text-transparent">
-                資訊安全情資協防暨自動化縱深防禦體系 — 高階管理摘要報告
+                資安防護清單與威脅情資自動化更新系統
               </h1>
               <p className="text-xs sm:text-sm text-slate-400">
-                架構模式：<code>雙庫職責分離 GitOps 自動化管線</code> ｜ 防護載體：
-                <strong className="text-slate-200">次世代邊界防火牆動態威脅清單 (EDL Threat Feeds)</strong>
+                架構模式：<code>雙儲存庫職責分離（開發原始碼庫 ↔ EDL 情資發布庫）</code> ｜ 執行機制：
+                <strong className="text-slate-200">Crontab 錯峰排程 (Asia/Taipei) + 狀態/額度台帳原子寫入 + Git Auto Push</strong>
               </p>
             </div>
 
-            {/* Meta Status Pills (Matching finance-free-xq-pub style) */}
+            {/* Meta Status Pills */}
             <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab('ip_lookup')}
+                className="glass-card px-3.5 py-2 flex flex-col items-start cursor-pointer border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/20 transition-all"
+              >
+                <span className="text-[11px] text-sky-300">快速檢索工具</span>
+                <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-white">
+                  🔍 查詢 IP 是否被封鎖 →
+                </span>
+              </button>
+
               <button
                 type="button"
                 onClick={handlePromptRelock}
                 title={
                   isUnlocked
                     ? '已通過金庫驗證 · 點擊可重新鎖定'
-                    : '點擊輸入通行密鑰解鎖報告'
+                    : '點擊輸入通行密鑰解鎖系統'
                 }
                 className="glass-card px-3.5 py-2 flex flex-col items-start cursor-pointer hover:border-sky-400/50"
               >
@@ -322,35 +390,46 @@ export default function ExecutiveDashboardPage() {
             </div>
           </div>
 
-          {/* Executive Summary Callout */}
+          {/* System Introduction Callout (Directly aligned with Fortigate/README.md) */}
           <div className="mt-5 p-4 rounded-xl bg-slate-900/70 border border-slate-800 text-xs sm:text-sm leading-relaxed text-slate-300">
-            <div className="font-bold text-white mb-1 flex items-center justify-between">
-              <span>📌 決策管理摘要（Executive Summary）</span>
-              <button
-                type="button"
-                onClick={scrollToMethodology}
-                className="text-xs text-sky-400 hover:underline font-normal"
-              >
-                📖 檢視指標計算公式與資料來源說明 →
-              </button>
+            <div className="font-bold text-white mb-1 flex flex-wrap items-center justify-between gap-2">
+              <span>📘 系統簡介與運作機制（System Overview）</span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('ip_lookup')}
+                  className="text-xs text-emerald-400 hover:underline font-semibold"
+                >
+                  🔍 進入 IP 封鎖狀態查詢器 →
+                </button>
+                <button
+                  type="button"
+                  onClick={scrollToMethodology}
+                  className="text-xs text-sky-400 hover:underline font-normal"
+                >
+                  📖 檢視指標計算公式與資料來源說明 →
+                </button>
+              </div>
             </div>
             <p>
-              為因應跨國殭屍網路、DDoS 阻斷服務攻擊、SSH 暴力破解與釣魚威脅，本體系建置
-              <strong className="text-white">「資訊安全情資協防暨自動化縱深防禦機制」</strong>。系統透過標準化自動化引擎，將
-              <strong className="text-sky-300">「國際高信賴威脅情資 (AbuseIPDB)」、「國內聯防與 CERT 威脅情資」、「骨幹流量即時感知探針」與「郵件閘道威脅統計」</strong>
-              四方情資深度整合，自動轉化為邊界核心防火牆可即時讀取之動態封鎖清單（External Dynamic Lists）。
+              本系統透過部署於自動化排程主機上的 Python 腳本（獨立託管於
+              <strong className="text-sky-300">「開發原始碼庫」</strong>），定期經由{' '}
+              <strong className="text-white">Crontab 錯峰排程</strong> 執行，自動分析
+              <strong className="text-sky-300">「郵件系統封鎖統計」、「CERT 外部聯防情資」、「骨幹流量 Top-N 異常行為」與「跨日重複犯案 ∪ AbuseIPDB 全球高信賴黑名單」</strong>，產出並 Git Push 同步至
+              <strong className="text-emerald-300">「EDL 實體情資發布庫」</strong>，專責提供邊界防火牆{' '}
+              <strong>External Dynamic List (EDL / Threat Feeds)</strong> 讀取套用封鎖規則，並彙整所有 IP 封鎖清單、FQDN 網域封鎖清單、內部設備存取控制清單與 DNS 封鎖警告訊息頁面。
               {isUnlocked && snapshot ? (
                 <>
-                  截至最新同步時間（<code>{snapshot.headTimeDisplay}</code>），全系統維運{' '}
+                  {' '}截至最新同步時間（<code>{snapshot.headTimeDisplay}</code>），全庫共維運{' '}
                   <strong className="text-emerald-300">{snapshot.totalFeedsCount} 份清單</strong>，其中去重後唯一外部封鎖 IPv4 達{' '}
                   <strong className="text-emerald-300">
                     {snapshot.uniqueExternalBlockIPv4.toLocaleString()} 筆
                   </strong>
-                  （長期黑名單佔{' '}
+                  （含自動化長期黑名單{' '}
                   <strong className="text-sky-300">
                     {snapshot.capacity.longTermCount.toLocaleString()} 筆
                   </strong>
-                  ），受保護與微隔離資產共{' '}
+                  ），受保護白名單與內部微隔離控管項目共{' '}
                   <strong className="text-amber-300">
                     {snapshot.protectedAndInternalEntries.toLocaleString()} 筆
                   </strong>
@@ -358,11 +437,11 @@ export default function ExecutiveDashboardPage() {
                   <strong className="text-white">
                     {snapshot.totalCommitsCount.toLocaleString()} 次
                   </strong>{' '}
-                  版本控管軌跡。
+                  Git 版本異動紀錄。
                 </>
               ) : (
                 <span className="text-amber-300 font-semibold ml-1">
-                  （請先解鎖安全金庫以檢視即時統計數據）
+                  （請先解鎖安全金庫以檢視即時統計數據與使用 IP 查詢功能）
                 </span>
               )}
             </p>
@@ -486,7 +565,8 @@ export default function ExecutiveDashboardPage() {
         {/* Navigation Tabs */}
         <nav className="glass-panel p-2 flex flex-wrap items-center gap-2 no-print">
           {[
-            { id: 'overview', icon: '🏛️', label: '四大支柱與管線健康度' },
+            { id: 'overview', icon: '🏗️', label: '系統架構、資料流與腳本規格' },
+            { id: 'ip_lookup', icon: '🔍', label: 'IP 封鎖狀態查詢' },
             { id: 'trend', icon: '📈', label: '長期黑名單趨勢與 24h 異動' },
             { id: 'inventory', icon: '📂', label: '全庫清單分類彙總表' },
             { id: 'compliance', icon: '⚖️', label: '容量水位預警與 ISO 27001:2022' },
@@ -499,6 +579,7 @@ export default function ExecutiveDashboardPage() {
                 setActiveTab(
                   tab.id as
                     | 'overview'
+                    | 'ip_lookup'
                     | 'trend'
                     | 'inventory'
                     | 'compliance'
@@ -517,9 +598,298 @@ export default function ExecutiveDashboardPage() {
           ))}
         </nav>
 
-        {/* ==================== TAB 1: OVERVIEW & PIPELINE HEALTH ==================== */}
+        {/* ==================== TAB: IP BLOCK STATUS LOOKUP ==================== */}
+        {activeTab === 'ip_lookup' && (
+          <section className="glass-panel p-6 space-y-5">
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <span>🔍 IP 威脅情資與封鎖狀態即時查詢工具（IP Blocklist Lookup）</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  對應本地 <code>query_ip_history.py</code> 核心檢索邏輯：支援單一或多個 IPv4 位址，即時比對全庫現行外部 IP 黑名單、郵件 CIDR 封鎖網段（32-bit 子網遮罩位元運算）及全域白名單/剔除清單狀態。
+                </p>
+              </div>
+              <div className="text-xs font-mono text-slate-400">
+                比對基準版本：
+                <strong className="text-sky-300 ml-1">
+                  {isUnlocked && snapshot
+                    ? `${snapshot.headTimeDisplay} (${snapshot.shortHeadSha})`
+                    : '🔒 解鎖後顯示'}
+                </strong>
+              </div>
+            </div>
+
+            {!isUnlocked ? (
+              <div className="text-center py-12 space-y-3">
+                <div className="text-slate-300 text-sm font-semibold">
+                  🔒 請先解鎖安全金庫以使用 IP 封鎖狀態查詢功能
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowVaultModal(true)}
+                  className="px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold"
+                >
+                  輸入通行密鑰解鎖
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="glass-card p-4 space-y-3">
+                  <label className="block text-xs font-bold text-slate-200">
+                    輸入要查詢之 IPv4 位址（支援單一或多個 IP，以空白、逗號或換行分隔，單次最多 50 筆）：
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="text"
+                      value={ipQueryInput}
+                      onChange={(e) => setIpQueryInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleQueryIps();
+                        }
+                      }}
+                      placeholder="例如：60.251.148.94, 35.201.232.104, 8.8.8.8"
+                      className="flex-1 rounded-xl bg-slate-900/90 border border-slate-700 focus:border-sky-400 px-4 py-2.5 text-sm font-mono text-white outline-none placeholder:text-slate-500"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={ipQueryLoading}
+                        onClick={() => handleQueryIps()}
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-xs sm:text-sm whitespace-nowrap shadow-lg shadow-sky-500/20 disabled:opacity-50"
+                      >
+                        {ipQueryLoading ? '⏳ 檢索比對中...' : '🔍 立即查詢封鎖狀態'}
+                      </button>
+                      {ipQueryInput && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIpQueryInput('');
+                            setIpQueryResult(null);
+                            setIpQueryError(null);
+                          }}
+                          className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                        >
+                          清除
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 pt-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>快速測試範例：</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sample = '8.8.8.8, 1.1.1.1';
+                          setIpQueryInput(sample);
+                          handleQueryIps(sample);
+                        }}
+                        className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-sky-300 font-mono"
+                      >
+                        8.8.8.8, 1.1.1.1 (白名單保護範例)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sample = '60.251.148.94 35.201.232.104 220.130.189.210';
+                          setIpQueryInput(sample);
+                          handleQueryIps(sample);
+                        }}
+                        className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono"
+                      >
+                        60.251.148.94 等多筆查詢範例
+                      </button>
+                    </div>
+                    <span>
+                      🔒 查詢結果經伺服器端 <code>AES-256-GCM</code> 加密回傳，不暴露其他清單內容
+                    </span>
+                  </div>
+                </div>
+
+                {ipQueryError && (
+                  <div className="p-3.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs">
+                    {ipQueryError}
+                  </div>
+                )}
+
+                {ipQueryResult && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                      <div className="glass-card p-3.5">
+                        <div className="text-[11px] text-slate-400">本次查詢 IP 總數</div>
+                        <div className="text-xl font-extrabold text-white mt-0.5">
+                          {ipQueryResult.totalQueried} 筆
+                        </div>
+                      </div>
+                      <div className="glass-card p-3.5 border-l-4 border-l-rose-500">
+                        <div className="text-[11px] text-slate-400">處於封鎖中 (Blocked)</div>
+                        <div className="text-xl font-extrabold text-rose-400 mt-0.5">
+                          {ipQueryResult.blockedCount} 筆
+                        </div>
+                      </div>
+                      <div className="glass-card p-3.5 border-l-4 border-l-emerald-500">
+                        <div className="text-[11px] text-slate-400">
+                          未封鎖 / 白名單保護
+                        </div>
+                        <div className="text-xl font-extrabold text-emerald-400 mt-0.5">
+                          {ipQueryResult.cleanCount} 筆
+                        </div>
+                      </div>
+                      <div className="glass-card p-3.5 flex flex-col justify-between">
+                        <div className="text-[11px] text-slate-400">
+                          本地深度 Git 歷史調閱指令
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleCopyLocalCmd(
+                              ipQueryResult.results
+                                .filter((r) => r.isValidIp)
+                                .map((r) => r.query)
+                            )
+                          }
+                          className="mt-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 text-xs font-mono text-left truncate"
+                          title="複製 python query_ip_history.py 指令以調閱過去 7 天逐筆 Commit 統計"
+                        >
+                          {copiedCmd
+                            ? '✅ 已複製 query_ip_history.py 指令！'
+                            : '📋 複製 query_ip_history.py 指令'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {ipQueryResult.results.map((item) => (
+                        <div
+                          key={item.query}
+                          className={`glass-card p-5 space-y-3 border-l-4 ${
+                            item.status === 'blocked'
+                              ? 'border-l-rose-500'
+                              : item.status === 'allowlisted' ||
+                                item.status === 'internal_protected'
+                              ? 'border-l-sky-400'
+                              : item.status === 'clean'
+                              ? 'border-l-emerald-400'
+                              : 'border-l-slate-500'
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-slate-400">查詢目標 IP：</span>
+                              <code className="text-base font-extrabold text-white bg-slate-900 px-2.5 py-0.5 rounded border border-slate-700">
+                                {item.query}
+                              </code>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {item.isAllowlisted && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
+                                  ✅ 已列入全域白名單 (allowlist)
+                                </span>
+                              )}
+                              {item.isExcludedFromLongTerm && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                                  🛡️ 已列入長期剔除清單 (longterm_exclude)
+                                </span>
+                              )}
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                                  item.status === 'blocked'
+                                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                                    : item.status === 'allowlisted' ||
+                                      item.status === 'internal_protected'
+                                    ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                                    : item.status === 'clean'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                    : 'bg-slate-800 text-slate-300 border-slate-700'
+                                }`}
+                              >
+                                {item.statusLabel}
+                              </span>
+                            </div>
+                          </div>
+
+                          {item.matches.length > 0 && (
+                            <div className="overflow-x-auto">
+                              <div className="text-xs font-bold text-rose-300 mb-2">
+                                1. 現行命中封鎖清單位置 (HEAD 最新版)：
+                              </div>
+                              <table className="w-full text-left border-collapse text-xs">
+                                <thead>
+                                  <tr className="border-b border-slate-700 bg-slate-900/60 text-slate-300">
+                                    <th className="p-2.5">命中清單識別名稱</th>
+                                    <th className="p-2.5">防護類別</th>
+                                    <th className="p-2.5">比對命中型態</th>
+                                    <th className="p-2.5">命中規則 / 網段</th>
+                                    <th className="p-2.5">來源腳本與頻率</th>
+                                    <th className="p-2.5">退場與排除機制</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800/80">
+                                  {item.matches.map((m) => (
+                                    <tr key={m.feedId} className="hover:bg-slate-800/40">
+                                      <td className="p-2.5 font-mono font-bold text-white">
+                                        {m.displayName}
+                                      </td>
+                                      <td className="p-2.5 whitespace-nowrap text-slate-300">
+                                        {m.categoryLabel}
+                                      </td>
+                                      <td className="p-2.5 whitespace-nowrap">
+                                        <span
+                                          className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                            m.matchType === 'exact_ip'
+                                              ? 'bg-rose-500/20 text-rose-300'
+                                              : 'bg-amber-500/20 text-amber-300'
+                                          }`}
+                                        >
+                                          {m.matchType === 'exact_ip'
+                                            ? '精確 IP 命中'
+                                            : 'CIDR 網段涵蓋'}
+                                        </span>
+                                      </td>
+                                      <td className="p-2.5 font-mono text-sky-300">
+                                        {m.matchedRule}
+                                      </td>
+                                      <td className="p-2.5 text-slate-300 whitespace-nowrap">
+                                        {m.generatorLabel} ({m.cadenceLabel})
+                                      </td>
+                                      <td className="p-2.5 text-slate-300">
+                                        {m.retentionPolicy}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+
+                          <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <strong className="text-white">💡 狀態說明與處置指引：</strong>{' '}
+                              {item.advisory}
+                            </div>
+                            {item.isValidIp && (
+                              <span className="font-mono text-[11px] text-slate-400">
+                                本地歷史查詢：<code>python query_ip_history.py {item.query} --days 7</code>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
+
+        {/* ==================== TAB 1: ARCHITECTURE, DATA FLOW & PIPELINE HEALTH ==================== */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            {/* Section 1: Pipeline Health */}
             <section className="glass-panel p-6 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -527,7 +897,7 @@ export default function ExecutiveDashboardPage() {
                     🚦 自動化情資管線健康度與資料時效監控（Pipeline Health &amp; Freshness）
                   </h2>
                   <p className="text-xs text-slate-400">
-                    即時解析各自動化排程引擎最後一次同步距今時間（注意：長期黑名單引擎若當輪無新增/退場則跳過提交，故超過 9 小時才發警示）
+                    即時解析 4 支自動化排程腳本最後一次同步距今時間（長期黑名單腳本若當輪無新增/退場則跳過無意義 Commit，故超過 9 小時才發警示）
                   </p>
                 </div>
                 <span className="text-xs font-mono text-slate-400">
@@ -583,14 +953,457 @@ export default function ExecutiveDashboardPage() {
               </div>
             </section>
 
-            {/* Four Pillars of Collaborative Defense */}
+            {/* Section 2: System Architecture & Data Flow Diagram (Aligned with Fortigate/README.md) */}
+            <section className="glass-panel p-6 space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-bold text-white">
+                    🏗️ 系統架構與自動化資料流向圖（System Architecture &amp; Data Flow）
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    完整對應情資儲存庫架構說明：由自動化腳本透過 Crontab 錯峰排程定期執行、原子寫入狀態與額度台帳，並 Git Auto Push 至發布庫供邊界防火牆讀取
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-mono">
+                  錯峰排程設計：分鐘尾數 0 / 2 / 5 / 8
+                </span>
+              </div>
+
+              {/* Visual Layered Flow Diagram */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+                {/* Layer 1: Automation Host & 4 Scripts */}
+                <div className="rounded-xl border border-sky-500/40 bg-sky-950/20 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs sm:text-sm font-extrabold text-sky-300">
+                      第一層：自動化排程主機（開發原始碼庫：Python 自動化腳本群）
+                    </span>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      TZ: Asia/Taipei | 每日累計 440 次自動巡檢
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <div className="rounded-lg bg-slate-900/90 border border-slate-800 p-3 space-y-1">
+                      <div className="font-mono font-bold text-amber-300">
+                        ├─ EmailSys_fortigate_block_v2_1.py
+                      </div>
+                      <div className="text-slate-300">
+                        郵件系統封鎖 IP/CIDR 產生器 (<code>v2.1</code>)
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-mono">
+                        排程：0-59/10 * * * * (每 10 分鐘)
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-900/90 border border-slate-800 p-3 space-y-1">
+                      <div className="font-mono font-bold text-sky-300">
+                        ├─ ncloud_fortigate_ntech_block_v2_1.py
+                      </div>
+                      <div className="text-slate-300">
+                        CERT 外部威脅封鎖清單產生器 (<code>v2.1</code>)
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-mono">
+                        排程：2-59/10 * * * * (每 10 分鐘)
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-900/90 border border-slate-800 p-3 space-y-1">
+                      <div className="font-mono font-bold text-emerald-300">
+                        ├─ ncloud_topn_feed_push_v4_5.py
+                      </div>
+                      <div className="text-slate-300">
+                        TopN 流量威脅情資推送器 (<code>v4.5</code>)
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-mono">
+                        排程：5-59/10 * * * * (日歸零+10m增量)
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-900/90 border border-slate-800 p-3 space-y-1">
+                      <div className="font-mono font-bold text-purple-300">
+                        └─ ncloud_longterm_block_v1_0.py
+                      </div>
+                      <div className="text-slate-300">
+                        長期重複與 AbuseIPDB 黑名單產生器 (<code>v1.0.1</code>)
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-mono">
+                        排程：8 */3 * * * (每 3 小時, 30天TTL)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Flow Arrow 1 */}
+                <div className="flex flex-col items-center text-xs text-sky-400 font-mono py-0.5">
+                  <div>│</div>
+                  <div className="px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-200 text-[11px]">
+                    ▼ Crontab 錯峰定期執行 + 狀態/額度台帳原子寫入 + 全域白名單/內部網段過濾 + Git Auto Push ▼
+                  </div>
+                  <div>▼</div>
+                </div>
+
+                {/* Layer 2: EDL Feed Publication Repo */}
+                <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/20 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs sm:text-sm font-extrabold text-emerald-300">
+                      第二層：EDL 實體情資發布儲存庫（自動更新純文字 Threat Feeds + 人工維護清冊）
+                    </span>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      CRLF/LF 標準化比對 | 無實質異動自動跳過 Commit
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <div className="rounded-lg bg-slate-900/90 border border-slate-800 p-3">
+                      <div className="font-bold text-rose-300 mb-1">
+                        🔴 外部威脅 IP 封鎖清單 (10 份)
+                      </div>
+                      <div className="text-[11px] text-slate-400 leading-relaxed">
+                        含 <code>AutoLongTerm-v1</code> (30d TTL)、<code>Manual-v5</code>、6 支流量分析 <code>ncloud_block_*</code>、<code>ntech_blocklist</code> 與端點威脅種子
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-900/90 border border-slate-800 p-3">
+                      <div className="font-bold text-amber-300 mb-1">
+                        🌐 FQDN 網域與郵件封鎖清單 (4 份)
+                      </div>
+                      <div className="text-[11px] text-slate-400 leading-relaxed">
+                        含 <code>DNS-FQDN-Blocklist-v6</code> (支援萬用字元 <code>*.domain</code>)、<code>ntech_blocklist_fqdn</code>、<code>emailsys_block_ipset</code> (CIDR) 與 FQDN
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-900/90 border border-slate-800 p-3">
+                      <div className="font-bold text-sky-300 mb-1">
+                        🖥️ 內部設備微隔離控管清單 (4 份)
+                      </div>
+                      <div className="text-[11px] text-slate-400 leading-relaxed">
+                        限制內部 IoT 設備、網通/印表機設備對外 Web 存取、核心伺服器群對外 SSH 封鎖及違規設備 MAC 封鎖
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-900/90 border border-slate-800 p-3">
+                      <div className="font-bold text-emerald-300 mb-1">
+                        ✅ 允許清單與服務維護資產 (8 份)
+                      </div>
+                      <div className="text-[11px] text-slate-400 leading-relaxed">
+                        含全域白名單 (<code>ncloud_allowlist</code>)、長期黑名單手動剔除清單 (<code>longterm_exclude</code>)、正式/學術網站與維運平台清冊
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Flow Arrow 2 */}
+                <div className="flex flex-col items-center text-xs text-emerald-400 font-mono py-0.5">
+                  <div>│</div>
+                  <div className="px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-200 text-[11px]">
+                    ▼ 邊界防火牆 External Dynamic List (EDL) 定時拉取 Raw URL 同步 + 雲端看板 AES-256-GCM 唯讀監控 ▼
+                  </div>
+                  <div>▼</div>
+                </div>
+
+                {/* Layer 3: Enforcement & Monitoring */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-xl border border-purple-500/40 bg-purple-950/20 p-4">
+                    <div className="font-extrabold text-purple-300 text-sm mb-1">
+                      第三層 (A)：邊界核心防火牆（讀取 Raw URL 並套用封鎖規則）
+                    </div>
+                    <p className="text-slate-300 leading-relaxed">
+                      即時掛載外部 IP 封鎖清單、CIDR 網段與 FQDN 網域黑名單執行邊界阻斷，並搭配自訂 DNS 封鎖警告頁面提示內部使用者（支援 13.1 萬～500 萬筆 External IP Threat Feed，容量裕度極高）。
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-sky-500/40 bg-sky-950/20 p-4">
+                    <div className="font-extrabold text-sky-300 text-sm mb-1">
+                      第三層 (B)：資安威脅情資監控與 IP 狀態查詢平台（本系統）
+                    </div>
+                    <p className="text-slate-300 leading-relaxed">
+                      透過 ETag 條件式快取與 SHA 版本鎖定讀取發布庫，提供 4 支自動化腳本健康度監控、長期黑名單趨勢分析、容量水位預警及加密保護之「IP 封鎖狀態即時查詢」。
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dual-Repository Architecture Table */}
+              <div className="space-y-2 pt-2">
+                <h3 className="text-sm font-bold text-white">
+                  🔗 雙儲存庫架構職責對照表（Repository Architecture）
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-700 bg-slate-900/60 text-slate-300">
+                        <th className="p-3">儲存庫角色</th>
+                        <th className="p-3">系統定位</th>
+                        <th className="p-3">主要託管內容</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/80">
+                      <tr className="hover:bg-slate-800/40">
+                        <td className="p-3 font-mono font-bold text-emerald-300 whitespace-nowrap">
+                          EDL 實體 Feed 發布庫
+                        </td>
+                        <td className="p-3 text-white font-semibold whitespace-nowrap">
+                          防火牆 External Dynamic List 純文字情資發布端
+                        </td>
+                        <td className="p-3 text-slate-300">
+                          自動化產出之純文字封鎖清單（<code>ncloud_block_*.txt</code>、<code>g-BLACK_IP_AutoLongTerm-v1.txt</code>、<code>emailsys_block_*.txt</code>、<code>ntech_blocklist*.txt</code>）、全域白名單（<code>ncloud_allowlist.txt</code>）、手動剔除清單（<code>longterm_exclude.txt</code>）及人工維護清冊
+                        </td>
+                      </tr>
+                      <tr className="hover:bg-slate-800/40">
+                        <td className="p-3 font-mono font-bold text-sky-300 whitespace-nowrap">
+                          開發原始碼庫 (Dev)
+                        </td>
+                        <td className="p-3 text-white font-semibold whitespace-nowrap">
+                          自動化 Python 程式碼與驗證測試開發庫
+                        </td>
+                        <td className="p-3 text-slate-300">
+                          Python 主程式（<code>v4.5</code>、<code>longterm v1.0.1</code>、<code>v2.1</code>）、共用模組（<code>ncloud_feed_utils.py</code>）、IP 歷史查詢工具（<code>query_ip_history.py</code>）、單元測試（<code>tests/</code>）與自動化驗證腳本（<code>verify_v4_5.sh</code>、<code>verify_longterm_v1_0.sh</code>）
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Script Function & Output Feeds Mapping Table */}
+              <div className="space-y-2 pt-2">
+                <h3 className="text-sm font-bold text-white">
+                  ⚙️ 自動化腳本運作機制與產出清單對照表（Python v4.5 &amp; LongTerm v1.0.1）
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-700 bg-slate-900/60 text-slate-300">
+                        <th className="p-3">腳本名稱與版本</th>
+                        <th className="p-3">Crontab 錯峰排程</th>
+                        <th className="p-3">主要運作邏輯與防護功能</th>
+                        <th className="p-3">負責更新之清單檔案</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/80">
+                      <tr className="hover:bg-slate-800/40">
+                        <td className="p-3 font-mono font-bold text-amber-300 whitespace-nowrap">
+                          EmailSys_fortigate_block_v2_1.py
+                        </td>
+                        <td className="p-3 font-mono text-slate-200 whitespace-nowrap">
+                          0-59/10 * * * *
+                        </td>
+                        <td className="p-3 text-slate-300">
+                          每 10 分鐘分析郵件系統封鎖統計，產生高風險 CIDR 網段格式與惡意寄件網域封鎖清單
+                        </td>
+                        <td className="p-3 font-mono text-slate-200">
+                          <code>emailsys_block_ipset.txt</code>、<code>emailsys_block_fqdn.txt</code>
+                        </td>
+                      </tr>
+                      <tr className="hover:bg-slate-800/40">
+                        <td className="p-3 font-mono font-bold text-sky-300 whitespace-nowrap">
+                          ncloud_fortigate_ntech_block_v2_1.py
+                        </td>
+                        <td className="p-3 font-mono text-slate-200 whitespace-nowrap">
+                          2-59/10 * * * *
+                        </td>
+                        <td className="p-3 text-slate-300">
+                          每 10 分鐘分析外部 CERT 威脅情資，產生惡意 IP 與掃描器 PTR 反解 FQDN 封鎖清單
+                        </td>
+                        <td className="p-3 font-mono text-slate-200">
+                          <code>ntech_blocklist.txt</code>、<code>ntech_blocklist_fqdn.txt</code>
+                        </td>
+                      </tr>
+                      <tr className="hover:bg-slate-800/40">
+                        <td className="p-3 font-mono font-bold text-emerald-300 whitespace-nowrap">
+                          ncloud_topn_feed_push_v4_5.py
+                        </td>
+                        <td className="p-3 font-mono text-slate-200 whitespace-nowrap">
+                          5-59/10 * * * *
+                        </td>
+                        <td className="p-3 text-slate-300">
+                          每日 00:00:00 自動歸零重算 + 每 10 分鐘增量更新；全面套用 <code>ncloud_allowlist.txt</code> 與內部 CIDR 過濾，分析 6 項流量威脅 Job
+                        </td>
+                        <td className="p-3 font-mono text-slate-200">
+                          <code>ncloud_block_src_topn.txt</code>、<code>ncloud_block_src_trojan_irc.txt</code>、<code>ncloud_block_src_cert_remote.txt</code>、<code>ncloud_block_src_ext_ssh_in.txt</code>、<code>ncloud_block_src_dns_ptr_anom.txt</code>、<code>ncloud_block_dst_topn.txt</code>
+                        </td>
+                      </tr>
+                      <tr className="hover:bg-slate-800/40">
+                        <td className="p-3 font-mono font-bold text-purple-300 whitespace-nowrap">
+                          ncloud_longterm_block_v1_0.py (v1.0.1)
+                        </td>
+                        <td className="p-3 font-mono text-slate-200 whitespace-nowrap">
+                          8 */3 * * *
+                        </td>
+                        <td className="p-3 text-slate-300">
+                          每 3 小時輪詢流量分析目標黑名單（過去 10 天內跨 ≥3 個不同日曆日出現）<strong>OR</strong> AbuseIPDB <code>GET /api/v2/blacklist</code>，具備獨立額度台帳 (<code>abuseipdb_quota_v1.json</code>)、<strong>30 天 TTL</strong> 自動退場、<code>longterm_exclude.txt</code> 手動剔除與 <code>ncloud_allowlist.txt</code> 全域白名單保護
+                        </td>
+                        <td className="p-3 font-mono text-slate-200">
+                          <code>g-BLACK_IP_AutoLongTerm-v1.txt</code>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+
+            {/* Section 3: LongTerm v1.0.1 Parameters, Header Specs & 6 Engineering Features */}
             <section className="glass-panel p-6 space-y-5">
               <div>
                 <h2 className="text-lg font-bold text-white">
-                  🏛️ 壹、資訊安全情資協防「四大支柱」與縱深防禦架構
+                  🆕 `LongTerm v1.0.1` 關鍵環境變數、產生標頭規範與六大版本工程特性
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  打破傳統「單點被動挨打」模式，透過跨國際、跨聯防組織、跨內部流量探針之多源情資匯流，建立四層立體協防屏障
+                  對應情資庫技術文件規範：確保自動化排程具備額度保護、原子寫入、換行符標準化與防誤封退場機制
+                </p>
+              </div>
+
+              {/* LongTerm Env Vars & State Files Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-700 bg-slate-900/60 text-slate-300">
+                      <th className="p-2.5">參數 / 狀態與日誌檔案</th>
+                      <th className="p-2.5">預設設定值</th>
+                      <th className="p-2.5">技術規格與運作說明</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/80">
+                    <tr className="hover:bg-slate-800/40">
+                      <td className="p-2.5 font-mono font-bold text-sky-300">TTL_DAYS</td>
+                      <td className="p-2.5 font-mono text-white">30</td>
+                      <td className="p-2.5 text-slate-300">
+                        已納入之 IP（跨日重複者與 AbuseIPDB 納入者一體適用）自 <code>last_seen</code> 起算超過 30 天自動退場移除
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-800/40">
+                      <td className="p-2.5 font-mono font-bold text-sky-300">
+                        RETENTION_DAYS / REPEAT_MIN_DAYS
+                      </td>
+                      <td className="p-2.5 font-mono text-white">10 / 3</td>
+                      <td className="p-2.5 text-slate-300">
+                        條件 1 於過去 10 天滾動視窗內跨 ≥3 個不同日曆日出現即納入長期黑名單（具備 &lt;500 筆或暴跌 &gt;50% 異常保護）
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-800/40">
+                      <td className="p-2.5 font-mono font-bold text-sky-300">
+                        ABUSE_MIN_INTERVAL_HOURS / ABUSE_MAX_CALLS_PER_DAY
+                      </td>
+                      <td className="p-2.5 font-mono text-white">6 小時 / 4 次</td>
+                      <td className="p-2.5 text-slate-300">
+                        兩次 AbuseIPDB 呼叫最小間隔 6 小時；每個 UTC 日最多呼叫 4 次（免費版上限 5 次/日，預留 1 次緩衝）
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-800/40">
+                      <td className="p-2.5 font-mono font-bold text-emerald-300">
+                        state/longterm_state_v1_0.json
+                      </td>
+                      <td className="p-2.5 font-mono text-slate-300">狀態目錄</td>
+                      <td className="p-2.5 text-slate-300">
+                        主狀態檔（於每次 <code>consolidate</code> 後、<strong>Git 推送前</strong> 先行原子寫入，確保推送異常時不遺失當輪觀測資料）
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-800/40">
+                      <td className="p-2.5 font-mono font-bold text-emerald-300">
+                        state/abuseipdb_quota_v1.json
+                      </td>
+                      <td className="p-2.5 font-mono text-slate-300">狀態目錄</td>
+                      <td className="p-2.5 text-slate-300">
+                        獨立 AbuseIPDB 額度台帳（於每次 HTTP 嘗試後、解析回應前立即原子寫入，追蹤 <code>calls</code>、<code>remaining</code>、<code>blocked_until</code> 與 <code>confidence_fallback</code>）
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-800/40">
+                      <td className="p-2.5 font-mono font-bold text-amber-300">
+                        logs/longterm_daily_stats.csv
+                      </td>
+                      <td className="p-2.5 font-mono text-slate-300">日誌目錄</td>
+                      <td className="p-2.5 text-slate-300">
+                        每次正式執行自動追加一行觀測統計（<code>ts,output_count,added,removed,abuse_fresh,abuse_new_ips,ncloud_repeat_total,abuse_total,ttl_expired,quota_calls_today_utc</code>）
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Header Specification Examples */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="glass-card p-4 space-y-2">
+                  <div className="text-xs font-bold text-emerald-300">
+                    📋 產生標頭規範 1：`ncloud_block_src_topn.txt`
+                  </div>
+                  <pre className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-300 overflow-x-auto leading-relaxed">
+{`# ncloud_block_src_topn.txt
+# Generated by ncloud_topn_feed_push_v4_5.py
+# Mode: daily recompute (00:00~now) UNION 10min incremental per-job union (10m)
+# TZ: Asia/Taipei
+# Jobs: ext_to_int_threat_unblocked, int_to_ext_flow_ioc, trojan_irc_top, cert_remote_top, dns_ptr_anomaly, ext_to_int_ssh_inflow
+# Note: main src = daily_topn_src(00:00~now) UNION incremental_union
+# Rules: public IPv4 only; internal subnet excluded; allowlist_file=ncloud_allowlist.txt`}
+                  </pre>
+                </div>
+
+                <div className="glass-card p-4 space-y-2">
+                  <div className="text-xs font-bold text-sky-300">
+                    📋 產生標頭規範 2：`g-BLACK_IP_AutoLongTerm-v1.txt`（無變動時間戳，避免無意義 Commit）
+                  </div>
+                  <pre className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-300 overflow-x-auto leading-relaxed">
+{`# g-BLACK_IP_AutoLongTerm-v1.txt
+# Generated by ncloud_longterm_block_v1_0.py
+# Rules: ncloud_repeat>=3days/10d OR AbuseIPDB blacklist(confidence>=100); TTL=30d; public IPv4 only; allowlist+longterm_exclude applied
+# Count: ${isUnlocked && snapshot ? snapshot.capacity.longTermCount : '58144'}
+#`}
+                  </pre>
+                </div>
+              </div>
+
+              {/* 6 Engineering Highlights */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                <div className="glass-card p-3.5 space-y-1">
+                  <div className="font-bold text-sky-300">
+                    1. 雙條件 OR 聯防與 30 天 TTL 退場
+                  </div>
+                  <p className="text-slate-300 leading-relaxed">
+                    結合「過去 10 天跨 ≥3 日重複出現」與「AbuseIPDB 高信心度黑名單」，並內建 30 天 TTL 自動退場、<code>longterm_exclude.txt</code> 手動剔除與全域白名單保護。
+                  </p>
+                </div>
+                <div className="glass-card p-3.5 space-y-1">
+                  <div className="font-bold text-emerald-300">
+                    2. 狀態先存後推與獨立額度台帳
+                  </div>
+                  <p className="text-slate-300 leading-relaxed">
+                    於 Git Push 前先行原子寫入主狀態檔與追加 CSV 統計；AbuseIPDB 額度台帳於每次 HTTP 嘗試後立即寫入，即使網路異常亦絕不遺失資料或重打 API。
+                  </p>
+                </div>
+                <div className="glass-card p-3.5 space-y-1">
+                  <div className="font-bold text-amber-300">
+                    3. 跨平台換行符規範化 (CRLF/LF)
+                  </div>
+                  <p className="text-slate-300 leading-relaxed">
+                    在 <code>atomic_write</code> 與 <code>write_with_header</code> 比對實體檔案時強制正規化換行符 (<code>\r\n → \n</code>)，根除跨系統假性檔案異動。
+                  </p>
+                </div>
+                <div className="glass-card p-3.5 space-y-1">
+                  <div className="font-bold text-purple-300">
+                    4. 精確 Git 暫存與無異動跳過推送
+                  </div>
+                  <p className="text-slate-300 leading-relaxed">
+                    <code>GitOps.commit_push</code> 明確偵測無實質內容變更時輸出 <code>No git delta staged; skip commit and push.</code>，避免產生空提交噪音。
+                  </p>
+                </div>
+                <div className="glass-card p-3.5 space-y-1">
+                  <div className="font-bold text-rose-300">
+                    5. 錯峰排程設計避免並行競爭
+                  </div>
+                  <p className="text-slate-300 leading-relaxed">
+                    4 支腳本分別錯開於分鐘尾數 <code>0</code>、<code>2</code>、<code>5</code> 與 <code>8</code>（每 3 小時），徹底防杜多程式同時競爭 Git 倉庫鎖與重置干擾。
+                  </p>
+                </div>
+                <div className="glass-card p-3.5 space-y-1">
+                  <div className="font-bold text-sky-300">
+                    6. 跨日歸零重置與 Dry-Run 全套驗證
+                  </div>
+                  <p className="text-slate-300 leading-relaxed">
+                    <code>topn v4.5</code> 透過 <code>last_reset_date</code> 確保每日 00:00 歸零；驗證腳本預設以 <code>--dry-run</code> 執行，不消耗 API 額度並嚴格校驗零白名單/內網洩漏。
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Section 4: Four Pillars Summary */}
+            <section className="glass-panel p-6 space-y-5">
+              <div>
+                <h2 className="text-lg font-bold text-white">
+                  🛡️ 四大情資來源分類統計彙總（Four Defense Pillars）
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  整合國際黑名單、外部 CERT 聯防、內部流量探針與郵件閘道之四層防護規模統計
                 </p>
               </div>
 
@@ -598,7 +1411,7 @@ export default function ExecutiveDashboardPage() {
                 <div className="glass-card p-5 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-sm text-white">
-                      🌐 支柱一：國際與外部聯防情資協防（先發制人）
+                      🌐 支柱一：國際與外部聯防情資（AbuseIPDB ∪ CERT）
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
                       {isUnlocked && snapshot
@@ -607,15 +1420,14 @@ export default function ExecutiveDashboardPage() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    整合國際權威惡意 IP 資料庫 <strong>AbuseIPDB</strong>（嚴選全球高惡意信心度之活躍攻擊源）與{' '}
-                    <strong>CERT 外部威脅情資</strong>。無須等待攻擊者觸碰內部網路，即可將全球正在肆虐之 DDoS 殭屍網路與掃描源預先列入 30 天封鎖清單。
+                    整合國際惡意 IP 資料庫 <strong>AbuseIPDB</strong>、<strong>CERT 外部威脅情資</strong> 與人工維護黑名單，預先阻斷全球活躍殭屍網路與高風險掃描源。
                   </p>
                 </div>
 
                 <div className="glass-card p-5 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-sm text-white">
-                      ⚡ 支柱二：骨幹流量即時感知協防（快速止血）
+                      ⚡ 支柱二：骨幹流量即時感知（Top-N 6 大威脅 Job）
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                       {isUnlocked && snapshot
@@ -624,15 +1436,14 @@ export default function ExecutiveDashboardPage() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    每 10 分鐘自動分析<strong>骨幹網路流量分析平台</strong> 6 大高危行為：外部未阻斷威脅 (Top-N)、對內 SSH 暴力入侵、木馬/IRC 中繼站連線、可疑遠端憑證與 DNS 反解異常。並將
-                    <strong>「10 天內跨 3 個日曆日重複犯案」</strong>之持續性攻擊者自動晉升至 30 天長期黑名單。
+                    每 10 分鐘自動分析流量分析平台 6 大異常行為：外部未阻斷威脅 (Top-N)、對內 SSH 入侵嘗試、木馬/IRC C2 連線、可疑遠端憑證與 DNS PTR 異常；10 天內跨 3 日重複出現者自動晉升至 30 天長期黑名單。
                   </p>
                 </div>
 
                 <div className="glass-card p-5 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-sm text-white">
-                      📧 支柱三：郵件閘道與惡意網域縱深協防（反釣魚勒索）
+                      📧 支柱三：郵件系統與惡意 FQDN 網域封鎖
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                       {isUnlocked && snapshot
@@ -641,24 +1452,23 @@ export default function ExecutiveDashboardPage() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    每 10 分鐘萃取<strong>郵件閘道異常寄件與暴力攻擊網段</strong>（CIDR 封鎖集），同步餵入邊界防火牆層級直接阻斷；並維護釣魚、木馬 C2 與惡意 FQDN 網域黑名單，搭配專屬{' '}
-                    <strong>DNS 阻斷警示頁面</strong>，保護使用者免受社交工程危害。
+                    每 10 分鐘萃取郵件系統封鎖 IP/CIDR 網段集合，並維護主要 DNS FQDN 封鎖清單（含萬用字元 <code>*.domain</code> 格式与掃描器 PTR 紀錄）及 DNS 阻斷警告頁面。
                   </p>
                 </div>
 
                 <div className="glass-card p-5 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-sm text-white">
-                      🔒 支柱四：內網資產微隔離與白名單防誤封治理（零信任）
+                      🔒 支柱四：內部設備控管與白名單防誤封治理
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
                       {isUnlocked && snapshot
-                        ? `${snapshot.pillars.microSegAndAllowCount.toLocaleString()} 筆控管/保護資產`
+                        ? `${snapshot.pillars.microSegAndAllowCount.toLocaleString()} 筆控管/保護項目`
                         : '🔒 解鎖後顯示'}
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    針對內部高風險資產實施嚴格微隔離（限制 IoT 設備、網通/印表機設備及核心伺服器群之非必要對外連線，並封鎖違規 MAC）；同時造冊保護重要對外資訊服務與關鍵白名單，確保業務與研究服務 100% 暢通。
+                    實施內部 IoT 設備、網路設備、伺服器群對外連線控管與違規 MAC 封鎖；同時透過 <code>ncloud_allowlist.txt</code> 與 <code>longterm_exclude.txt</code> 確保重要外部與內部服務不被誤封。
                   </p>
                 </div>
               </div>
@@ -1270,7 +2080,7 @@ export default function ExecutiveDashboardPage() {
                 📘 陸、方法論、指標公式與資料來源透明化聲明（Methodology &amp; Audit Notes）
               </h2>
               <p className="text-xs text-slate-400">
-                供決策主管、資安官及稽核委員核對各項統計數字之計算邏輯與邊界限制
+                供資安維運人員與稽核人員核對各項統計數字之計算邏輯與邊界限制
               </p>
             </div>
 
@@ -1281,7 +2091,7 @@ export default function ExecutiveDashboardPage() {
                 </h3>
                 <p className="text-slate-300 leading-relaxed">
                   本前臺同步自自動化情資發布庫，所呈現之數字皆為
-                  <strong>「生效中之防護規則／指標筆數（Active Indicators in EDL）」</strong>，而非邊界防火牆硬體之「封包攔截命中次數（Firewall Traffic Hits）」。實際封包攔截統計由日誌分析平台另行產出月報。
+                  <strong>「生效中之防護規則／指標筆數（Active Indicators in EDL）」</strong>，而非邊界防火牆硬體之「封包攔截命中次數（Firewall Traffic Hits）」。實際封包攔截統計由日誌分析平台另行產出。
                 </p>
               </div>
 
@@ -1323,7 +2133,7 @@ export default function ExecutiveDashboardPage() {
         {/* Footer */}
         <footer className="pt-6 border-t border-slate-800/80 text-center text-xs text-slate-500 space-y-1">
           <div>
-            © 2026 <strong>資通安全情資協防暨自動化縱深防禦專案</strong> ·
+            © 2026 <strong>資安防護清單與威脅情資自動化更新系統</strong> ·
             Powered by Next.js &amp; AES-256-GCM Zero-Knowledge Security Vault
           </div>
           <div>
@@ -1341,11 +2151,11 @@ export default function ExecutiveDashboardPage() {
               CTI DEFENSE AES-256-GCM SECURITY VAULT
             </div>
             <h2 className="text-xl font-extrabold text-white mb-2">
-              資安情資協防金庫 · 安全解鎖
+              資安情資系統 · 安全金庫驗證
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-5">
-              本高階主管報告全量數據採用金融級{' '}
-              <strong className="text-slate-200">AES-256-GCM 密文加密</strong>。<br />
+              本系統統計數據與 IP 封鎖查詢資料採用{' '}
+              <strong className="text-slate-200">AES-256-GCM 密文加密保護</strong>。<br />
               公開伺服器未儲存任何明文統計或金鑰，請輸入通行密鑰或點擊專屬授權連結解鎖。
             </p>
 
@@ -1393,7 +2203,7 @@ export default function ExecutiveDashboardPage() {
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold text-sm shadow-lg shadow-sky-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <span>
-                {loadingApi ? '⏳ 正在載入加密快照...' : '🔓 立即解密並進入報告'}
+                {loadingApi ? '⏳ 正在載入加密快照...' : '🔓 立即解密並進入系統'}
               </span>
             </button>
 
@@ -1456,10 +2266,10 @@ export default function ExecutiveDashboardPage() {
               </button>
             </div>
             <h3 className="text-lg font-bold text-white mb-1">
-              📲 資安情資協防報告 · 檢視密鑰申請
+              📲 資安情資系統 · 檢視密鑰申請
             </h3>
             <p className="text-xs text-slate-400 mb-4">
-              本系統專供授權決策主管、資安督導單位與維運管理人員檢閱。請透過以下方式聯繫管理員取得通行密鑰或 1-Click 解密連結：
+              本系統供授權資安與網路維運管理人員檢視與查詢。請透過以下方式聯繫管理員取得通行密鑰或 1-Click 解密連結：
             </p>
 
             <div className="space-y-2.5 text-xs text-slate-300 mb-4">
@@ -1476,7 +2286,7 @@ export default function ExecutiveDashboardPage() {
                   步驟 2：註明單位與用途
                 </div>
                 <div className="text-slate-400">
-                  傳送：<code>【申請資安情資報告密鑰】姓名 / 單位與用途</code>。
+                  傳送：<code>【申請資安情資系統密鑰】姓名 / 單位與用途</code>。
                 </div>
               </div>
               <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
@@ -1484,7 +2294,7 @@ export default function ExecutiveDashboardPage() {
                   步驟 3：取得 1-Click 解密連結
                 </div>
                 <div className="text-slate-400">
-                  核准後將回傳專屬 Token 連結，點擊即可直接解鎖檢視最新動態報表。
+                  核准後將回傳專屬 Token 連結，點擊即可直接解鎖檢視最新動態資訊與查詢 IP。
                 </div>
               </div>
             </div>

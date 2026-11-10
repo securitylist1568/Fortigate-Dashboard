@@ -169,3 +169,38 @@ export interface DashboardSnapshot {
 
   pipelineHealth: ScriptHealthStatus[];
 }
+
+export interface IpQueryFeedMatch {
+  feedId: string;
+  displayName: string;
+  categoryLabel: string;
+  generatorLabel: string;
+  cadenceLabel: string;
+  matchType: 'exact_ip' | 'cidr_subnet';
+  matchedRule: string;
+  retentionPolicy: string;
+}
+
+export interface IpQueryResultItem {
+  query: string;
+  isValidIp: boolean;
+  status: 'blocked' | 'clean' | 'allowlisted' | 'internal_protected' | 'invalid';
+  statusLabel: string;
+  isAllowlisted: boolean;
+  isExcludedFromLongTerm: boolean;
+  matches: IpQueryFeedMatch[];
+  advisory: string;
+}
+
+export interface IpQueryResponsePayload {
+  headSha: string;
+  shortHeadSha: string;
+  headTimeDisplay: string;
+  queriedAtDisplay: string;
+  totalQueried: number;
+  blockedCount: number;
+  cleanCount: number;
+  results: IpQueryResultItem[];
+}
+
+

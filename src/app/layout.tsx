@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '資訊安全情資協防暨自動化縱深防禦體系 — 高階管理摘要報告',
+  title: '資安防護清單與威脅情資自動化更新系統',
   description:
-    'Cyber Threat Intelligence Collaborative Defense Executive Dashboard (AES-256-GCM Security Vault)',
+    'Cyber Threat Intelligence & Automated Blocklist Management System (AES-256-GCM Security Vault)',
   robots: {
     index: false,
     follow: false,

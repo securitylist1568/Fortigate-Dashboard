@@ -9,7 +9,39 @@ export interface ParsedFeedStats {
   entriesSet: Set<string>;   // Used strictly in-memory on server for deduplication, never serialized!
 }
 
+export interface ParsedCidrRange {
+  cidr: string;
+  netInt: number;
+  maskInt: number;
+}
+
 const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+
+/**
+ * Converts a valid IPv4 string to an unsigned 32-bit integer, or returns null if invalid.
+ */
+export function ipv4ToUint32(ip: string): number | null {
+  const trimmed = ip.trim();
+  if (!IPV4_REGEX.test(trimmed)) return null;
+  const [a, b, c, d] = trimmed.split('.').map(Number);
+  return (((a << 24) >>> 0) + ((b << 16) >>> 0) + ((c << 8) >>> 0) + d) >>> 0;
+}
+
+/**
+ * Parses a CIDR string (e.g. "203.0.113.0/24") into unsigned 32-bit network and mask integers.
+ */
+export function parseCidrRange(entry: string): ParsedCidrRange | null {
+  const parts = entry.trim().split('/');
+  if (parts.length !== 2) return null;
+  const ipInt = ipv4ToUint32(parts[0]);
+  const prefix = Number(parts[1]);
+  if (ipInt === null || !Number.isInteger(prefix) || prefix < 0 || prefix > 32) {
+    return null;
+  }
+  const maskInt = prefix === 0 ? 0 : ((0xffffffff << (32 - prefix)) >>> 0);
+  const netInt = (ipInt & maskInt) >>> 0;
+  return { cidr: entry.trim(), netInt, maskInt };
+}
 
 /**
  * Checks whether an IPv4 string belongs to internal protected /16 subnet or RFC1918 private/loopback ranges
