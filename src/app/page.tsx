@@ -65,7 +65,6 @@ export default function ThreatDefenseDashboardPage() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
   const [showVaultModal, setShowVaultModal] = useState<boolean>(true);
-  const [showApplyModal, setShowApplyModal] = useState<boolean>(false);
 
   const [passInput, setPassInput] = useState<string>('');
   const [showPassText, setShowPassText] = useState<boolean>(false);
@@ -2703,114 +2702,6 @@ export default function ThreatDefenseDashboardPage() {
               <span>
                 {loadingApi ? '⏳ 正在載入加密快照...' : '🔓 立即解密並進入系統'}
               </span>
-            </button>
-
-            <div className="flex items-center my-4 text-slate-500 text-xs">
-              <div className="flex-1 border-b border-slate-800" />
-              <span className="px-3">檢視權限申請</span>
-              <div className="flex-1 border-b border-slate-800" />
-            </div>
-
-            <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-left">
-              <div className="flex items-center gap-2.5">
-                <span className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-lg">
-                  📲
-                </span>
-                <div>
-                  <div className="text-xs font-bold text-white">
-                    尚未取得通行密鑰？
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    透過資安管理窗口或 LINE 官方機器人取得 1-Click 授權連結
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowApplyModal(true)}
-                className="px-3 py-2 rounded-xl bg-[#06c755] hover:bg-[#05b34c] text-white font-bold text-xs whitespace-nowrap shadow"
-              >
-                申請密鑰
-              </button>
-            </div>
-
-            <div className="mt-3.5 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-left text-[11px] text-slate-400 space-y-1">
-              <div className="font-bold text-sky-400">
-                💡 1-Click 快捷授權說明
-              </div>
-              <div>
-                • 點擊<strong>專屬核發授權連結（附帶 ?auth= 參數）</strong>時，系統將自動瞬間解密並抹除網址列參數。
-                <br />• 授權狀態會在當前工作階段（Session）妥善保存，點擊右上角「🔐 金庫已解鎖」可隨時重新鎖定。
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ==================== PASSKEY APPLICATION MODAL ==================== */}
-      {showApplyModal && (
-        <div className="modal-backdrop no-print">
-          <div className="vault-dialog text-left">
-            <div className="flex items-center justify-between mb-3">
-              <span className="px-2.5 py-0.5 rounded-full bg-[#06c755] text-white text-[11px] font-bold">
-                CTI VAULT ACCESS REQUEST
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowApplyModal(false)}
-                className="text-slate-400 hover:text-white text-xl leading-none"
-              >
-                &times;
-              </button>
-            </div>
-            <h3 className="text-lg font-bold text-white mb-1">
-              📲 資安情資系統 · 檢視密鑰申請
-            </h3>
-            <p className="text-xs text-slate-400 mb-4">
-              本系統供授權資安與網路維運管理人員檢視與查詢。請透過以下方式聯繫管理員取得通行密鑰或 1-Click 解密連結：
-            </p>
-
-            <div className="space-y-2.5 text-xs text-slate-300 mb-4">
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-                <div className="font-bold text-white mb-0.5">
-                  步驟 1：聯繫資安情資維運窗口
-                </div>
-                <div className="text-slate-400">
-                  可透過 LINE 官方帳號（<code>@208jinte</code>）提交申請。
-                </div>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-                <div className="font-bold text-white mb-0.5">
-                  步驟 2：註明單位與用途
-                </div>
-                <div className="text-slate-400">
-                  傳送：<code>【申請資安情資系統密鑰】姓名 / 單位與用途</code>。
-                </div>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-                <div className="font-bold text-white mb-0.5">
-                  步驟 3：取得 1-Click 解密連結
-                </div>
-                <div className="text-slate-400">
-                  核准後將回傳專屬 Token 連結，點擊即可直接解鎖檢視最新動態資訊與查詢 IP。
-                </div>
-              </div>
-            </div>
-
-            <a
-              href="https://line.me/R/ti/p/@208jinte"
-              target="_blank"
-              rel="noreferrer"
-              className="block w-full py-2.5 rounded-xl bg-[#06c755] hover:bg-[#05b34c] text-white font-bold text-center text-sm mb-2"
-            >
-              💬 透過 LINE 官方帳號申請 (@208jinte)
-            </a>
-            <button
-              type="button"
-              onClick={() => setShowApplyModal(false)}
-              className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs"
-            >
-              返回密鑰輸入畫面
             </button>
           </div>
         </div>
