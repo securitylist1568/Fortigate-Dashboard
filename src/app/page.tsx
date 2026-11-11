@@ -322,7 +322,7 @@ export default function ThreatDefenseDashboardPage() {
               </h1>
               <p className="text-xs sm:text-sm text-slate-400">
                 架構模式：<code>雙儲存庫職責分離（開發原始碼庫 ↔ EDL 情資發布庫）</code> ｜ 執行機制：
-                <strong className="text-slate-200">Crontab 錯峰排程 (Asia/Taipei) + 狀態/額度台帳原子寫入 + Git Auto Push</strong>
+                <strong className="text-slate-200">Crontab 錯峰排程 (Asia/Taipei) + 狀態與配額紀錄完整寫入 + Git 自動推送</strong>
               </p>
             </div>
 
@@ -424,7 +424,7 @@ export default function ThreatDefenseDashboardPage() {
               {isUnlocked && snapshot ? (
                 <>
                   {' '}截至最新同步時間（<code>{snapshot.headTimeDisplay}</code>），全庫共維運{' '}
-                  <strong className="text-emerald-300">{snapshot.totalFeedsCount} 份清單</strong>，其中去重後唯一外部封鎖 IPv4 達{' '}
+                  <strong className="text-emerald-300">{snapshot.totalFeedsCount} 份清單</strong>，其中剔除重複後唯一外部封鎖 IPv4 達{' '}
                   <strong className="text-emerald-300">
                     {snapshot.uniqueExternalBlockIPv4.toLocaleString()} 筆
                   </strong>
@@ -454,7 +454,7 @@ export default function ThreatDefenseDashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-5">
             <div className="glass-card p-4 border-l-4 border-l-sky-400">
               <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>外部封鎖唯一 IPv4 (去重聯集)</span>
+                <span>外部封鎖唯一 IPv4 (剔除重複聯集)</span>
                 <button
                   type="button"
                   onClick={scrollToMethodology}
@@ -629,7 +629,7 @@ export default function ThreatDefenseDashboardPage() {
                 id: 'methodology',
                 icon: '📘',
                 label: '方法論、公式與資料來源說明',
-                sub: '去重聯集與驗證依據',
+                sub: '剔除重複聯集與驗證依據',
               },
             ].map((tab) => {
               const isActive = activeTab === tab.id;
@@ -1159,7 +1159,7 @@ export default function ThreatDefenseDashboardPage() {
                   </p>
                 </div>
                 <span className="text-xs font-mono text-slate-400">
-                  快照抓取時間：{isUnlocked && snapshot ? snapshot.fetchedAtDisplay : '🔒 解鎖後顯示'}
+                  快照同步時間：{isUnlocked && snapshot ? snapshot.fetchedAtDisplay : '🔒 解鎖後顯示'}
                 </span>
               </div>
 
@@ -1303,8 +1303,8 @@ export default function ThreatDefenseDashboardPage() {
                       '將「過去 10 天內跨 ≥3 個不同日曆日重複出現之攻擊 IP」與「AbuseIPDB 100% 信心度全球黑名單」取聯集，實施 30 天 TTL 長期封鎖與自動退場。',
                     files: ['g-BLACK_IP_AutoLongTerm-v1.txt'],
                     techSpecs: [
-                      '狀態先存後推：於 Git 推送前先行原子寫入 longterm_state_v1_0.json 與 CSV 統計',
-                      '獨立額度台帳：abuseipdb_quota_v1.json 控管每日最多呼叫 4 次、最小間隔 6 小時',
+                      '狀態先存後推：於 Git 推送前先行安全完整寫入 longterm_state_v1_0.json 與 CSV 統計',
+                      '獨立配額紀錄檔：abuseipdb_quota_v1.json 控管每日最多呼叫 4 次、最小間隔 6 小時',
                       '雙重防誤封：同時套用 ncloud_allowlist.txt 與 longterm_exclude.txt 手動剔除清單',
                     ],
                   },
@@ -1312,7 +1312,7 @@ export default function ThreatDefenseDashboardPage() {
                     layer: '第二層：EDL 實體情資發布庫（Fortigate）',
                     badge: '10 份純文字檔 · 外部封鎖',
                     title: '🔴 外部威脅 IP 封鎖清單群',
-                    subtitle: '提供防火牆 External IP Threat Feed 直接拉取阻斷',
+                    subtitle: '提供防火牆 External IP Threat Feed 直接讀取阻斷',
                     scheduleOrRole: '自動 Git Push 更新 + 人工重點維護',
                     summary:
                       '涵蓋 30 天長期黑名單、人工永久黑名單、6 份骨幹流量動態清單、CERT 外部情資與端點惡意程式中繼站種子清單。',
@@ -1330,7 +1330,7 @@ export default function ThreatDefenseDashboardPage() {
                     ],
                     techSpecs: [
                       '本查詢系統同時索引最新 HEAD 與近 10 日動態滾動歷史（如 ncloud_block_src_cert_remote.txt）',
-                      '伺服器端自動執行 Set 去重聯集計算唯一封鎖 IPv4 總數',
+                      '伺服器端自動執行 Set 剔除重複聯集計算唯一封鎖 IPv4 總數',
                       '100% 零內網與零白名單洩漏驗證',
                     ],
                   },
@@ -1400,7 +1400,7 @@ export default function ThreatDefenseDashboardPage() {
                     layer: '第三層：邊界執行與監控層',
                     badge: 'EDL 動態掛載執行',
                     title: '🛡️ 邊界核心防火牆（External Dynamic List）',
-                    subtitle: '定時拉取發布庫 Raw URL 自動套用封鎖與豁免政策',
+                    subtitle: '定時讀取發布庫 Raw URL 自動套用封鎖與豁免政策',
                     scheduleOrRole: '無須人工登入防火牆改規則，全自動同步生效',
                     summary:
                       '透過 External Connector 定時讀取第二層發布庫之純文字清單，即時執行邊界 IP/CIDR 阻斷、DNS 惡意網域過濾與內網微隔離策略。',
@@ -1530,13 +1530,46 @@ export default function ThreatDefenseDashboardPage() {
                         </div>
                       </div>
 
-                      {/* Compact Flow Connector 1 */}
-                      <div className="flex items-center justify-center gap-2 text-xs font-mono font-bold text-sky-800 py-0.5">
-                        <span>▼</span>
-                        <span className="px-3.5 py-1 rounded-full bg-white border border-sky-300 text-slate-800 shadow-sm">
-                          狀態/額度台帳原子寫入 + 全域白名單過濾 + Git Auto Push
-                        </span>
-                        <span>▼</span>
+                      {/* Prominent Downward Flow Connector 1 (Layer 1 -> Layer 2) */}
+                      <div className="flex flex-col items-center justify-center py-1.5">
+                        <div className="flex items-center justify-center gap-3 sm:gap-5 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-50 via-white to-amber-50 border-2 border-amber-400 shadow-md shadow-amber-900/10">
+                          <div className="flex flex-col items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-b from-amber-500 to-orange-600 text-white shadow-sm shrink-0">
+                            <svg
+                              className="w-5 h-5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M12 4v14" />
+                              <path d="m18 12-6 6-6-6" />
+                            </svg>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[11px] font-extrabold text-amber-800 tracking-wider uppercase">
+                              ⬇️ 往下同步流程 (Step 1 → Step 2) ⬇️
+                            </div>
+                            <div className="text-xs sm:text-sm font-extrabold text-slate-900 mt-0.5">
+                              狀態與配額紀錄完整寫入 ＋ 全域白名單過濾 ＋ Git 自動推送更新
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-b from-amber-500 to-orange-600 text-white shadow-sm shrink-0">
+                            <svg
+                              className="w-5 h-5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M12 4v14" />
+                              <path d="m18 12-6 6-6-6" />
+                            </svg>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Layer 2 */}
@@ -1618,13 +1651,46 @@ export default function ThreatDefenseDashboardPage() {
                         </div>
                       </div>
 
-                      {/* Compact Flow Connector 2 */}
-                      <div className="flex items-center justify-center gap-2 text-xs font-mono font-bold text-sky-800 py-0.5">
-                        <span>▼</span>
-                        <span className="px-3.5 py-1 rounded-full bg-white border border-sky-300 text-slate-800 shadow-sm">
-                          EDL 定時拉取 Raw URL 套用阻斷 + 雲端看板 AES-256-GCM 唯讀監控
-                        </span>
-                        <span>▼</span>
+                      {/* Prominent Downward Flow Connector 2 (Layer 2 -> Layer 3) */}
+                      <div className="flex flex-col items-center justify-center py-1.5">
+                        <div className="flex items-center justify-center gap-3 sm:gap-5 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-50 via-white to-amber-50 border-2 border-amber-400 shadow-md shadow-amber-900/10">
+                          <div className="flex flex-col items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-b from-amber-500 to-orange-600 text-white shadow-sm shrink-0">
+                            <svg
+                              className="w-5 h-5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M12 4v14" />
+                              <path d="m18 12-6 6-6-6" />
+                            </svg>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[11px] font-extrabold text-amber-800 tracking-wider uppercase">
+                              ⬇️ 往下讀取與套用流程 (Step 2 → Step 3) ⬇️
+                            </div>
+                            <div className="text-xs sm:text-sm font-extrabold text-slate-900 mt-0.5">
+                              防火牆 EDL 定時讀取 Raw URL 套用封鎖 ＋ 監控平台 AES-256-GCM 唯讀同步
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-b from-amber-500 to-orange-600 text-white shadow-sm shrink-0">
+                            <svg
+                              className="w-5 h-5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M12 4v14" />
+                              <path d="m18 12-6 6-6-6" />
+                            </svg>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Layer 3 */}
@@ -1807,7 +1873,7 @@ export default function ThreatDefenseDashboardPage() {
                           {/* LongTerm Env Vars & State Files Table */}
                           <div className="space-y-2">
                             <h3 className="text-sm font-bold text-white">
-                              🆕 `LongTerm v1.0.1` 關鍵環境變數與狀態台帳規格
+                              🆕 `LongTerm v1.0.1` 關鍵環境變數與狀態紀錄檔規格
                             </h3>
                             <div className="overflow-x-auto">
                               <table className="w-full text-left border-collapse text-xs">
@@ -1848,9 +1914,9 @@ export default function ThreatDefenseDashboardPage() {
                                     <td className="p-2.5 font-mono font-bold text-emerald-300">
                                       state/longterm_state_v1_0.json &amp; abuseipdb_quota_v1.json
                                     </td>
-                                    <td className="p-2.5 font-mono text-slate-300">原子寫入</td>
+                                    <td className="p-2.5 font-mono text-slate-300">安全完整寫入</td>
                                     <td className="p-2.5 text-slate-300">
-                                      主狀態檔於 Git Push 前先行原子寫入；額度台帳於每次 HTTP 嘗試後立即寫入
+                                      主狀態檔於 Git Push 前先行安全完整寫入；配額紀錄檔於每次 HTTP 嘗試後立即寫入
                                     </td>
                                   </tr>
                                 </tbody>
@@ -1949,7 +2015,7 @@ export default function ThreatDefenseDashboardPage() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    每 10 分鐘萃取郵件系統封鎖 IP/CIDR 網段集合，並維護主要 DNS FQDN 封鎖清單（含萬用字元 <code>*.domain</code> 格式与掃描器 PTR 紀錄）及 DNS 阻斷警告頁面。
+                    每 10 分鐘萃取郵件系統封鎖 IP/CIDR 網段集合，並維護主要 DNS FQDN 封鎖清單（含萬用字元 <code>*.domain</code> 格式與掃描器 PTR 紀錄）及 DNS 阻斷警告頁面。
                   </p>
                 </div>
 
@@ -2597,7 +2663,7 @@ export default function ThreatDefenseDashboardPage() {
                   2. 外部封鎖唯一 IPv4（Unique External Block IPv4）計算公式
                 </h3>
                 <p className="text-slate-300 leading-relaxed">
-                  由於當日短期快篩清單與 30 天長期黑名單之間存在部分重疊，本系統於伺服器端將 10 份「外部威脅 IP」清單載入記憶體執行 <code>Set</code> 去重聯集（Union），並將<strong>白名單與內部資產清冊完全排除於封鎖指標之外</strong>，確保絕不灌水重複計算。
+                  由於當日短期快篩清單與 30 天長期黑名單之間存在部分重疊，本系統於伺服器端將 10 份「外部威脅 IP」清單載入記憶體執行 <code>Set</code> 剔除重複聯集（Union），並將<strong>白名單與內部資產清冊完全排除於封鎖指標之外</strong>，確保絕不灌水重複計算。
                 </p>
               </div>
 
