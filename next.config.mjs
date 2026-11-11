@@ -11,6 +11,16 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: '/(robots\\.txt|favicon\\.ico|icon\\.svg)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, s-maxage=604800, immutable',
+          },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+        ],
+      },
+      {
         source: '/:path*',
         headers: [
           { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
