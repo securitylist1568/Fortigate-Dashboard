@@ -83,8 +83,8 @@ let cachedHistoricalFeedIndex: Map<string, Map<string, HistoricalIpSighting>> | 
 let lastHistoricalBuildMs = 0;
 let lastSuccessfulFetchMs = 0;
 
-const REVALIDATE_INTERVAL_MS = 300 * 1000; // 5 minutes
-const HISTORICAL_REBUILD_INTERVAL_MS = 1800 * 1000; // 30 minutes
+const REVALIDATE_INTERVAL_MS = 180 * 1000; // 3 minutes (aligned with Edge CDN s-maxage=180)
+const HISTORICAL_REBUILD_INTERVAL_MS = 7200 * 1000; // 2 hours (past 1-10 days end-of-day snapshots are static)
 const HISTORICAL_DYNAMIC_FEED_IDS = [
   'traffic_src_topn',
   'traffic_src_ssh',
@@ -786,10 +786,7 @@ async function ensureHistoricalDynamicIndex(): Promise<
 export async function queryIpsAgainstFeeds(
   rawQueries: string[]
 ): Promise<IpQueryResponsePayload> {
-  const [snapshot, historicalIndexMap] = await Promise.all([
-    getDashboardSnapshot(false),
-    ensureHistoricalDynamicIndex(),
-  ]);
+  const snapshot = await getDashboardSnapshot(false);
   const indexMap = cachedIpLookupIndex ?? new Map<string, FeedIpIndex>();
 
   const cleanedTokens = Array.from(
@@ -805,6 +802,8 @@ export async function queryIpsAgainstFeeds(
   let historicalBlockedCount = 0;
   let inAllowlistCount = 0;
   let cleanCount = 0;
+  let historicalIndexMap: Map<string, Map<string, HistoricalIpSighting>> | null =
+    cachedHistoricalFeedIndex;
 
   for (const rawToken of cleanedTokens) {
     const bareIp = rawToken.endsWith('/32') ? rawToken.slice(0, -3) : rawToken;
@@ -878,41 +877,47 @@ export async function queryIpsAgainstFeeds(
       }
     }
 
-    // Check 10-day historical dynamic blocklists for feeds not currently matched in HEAD
-    const cleanedHostKey = rawToken
-      .trim()
-      .toLowerCase()
-      .replace(/^https?:\/\//, '')
-      .replace(/\/.*$/, '');
+    // Lazy On-Demand 10-day historical dynamic blocklist lookup:
+    // Only fetch/build the 10-day historical index if the target was NOT already blocked in HEAD (or if historical index is already warm in memory)
+    if (blockMatches.length === 0 || historicalIndexMap !== null) {
+      if (!historicalIndexMap) {
+        historicalIndexMap = await ensureHistoricalDynamicIndex();
+      }
+      const cleanedHostKey = rawToken
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/\/.*$/, '');
 
-    for (const [histFeedId, sightingMap] of historicalIndexMap.entries()) {
-      if (matchedHeadFeedIds.has(histFeedId)) continue;
-      const feedIdx = indexMap.get(histFeedId);
-      if (!feedIdx) continue;
+      for (const [histFeedId, sightingMap] of historicalIndexMap.entries()) {
+        if (matchedHeadFeedIds.has(histFeedId)) continue;
+        const feedIdx = indexMap.get(histFeedId);
+        if (!feedIdx) continue;
 
-      const lookupKey =
-        feedIdx.kind === 'fqdn' ? cleanedHostKey : effectiveBareIp;
-      const sighting = sightingMap.get(lookupKey);
-      if (sighting) {
-        historicalBlockMatches.push({
-          feedId: feedIdx.id,
-          fileName: feedIdx.fileName,
-          displayName: feedIdx.fileName,
-          category: feedIdx.category,
-          categoryLabel: feedIdx.categoryLabel,
-          isBlocklist: true,
-          generatorLabel: feedIdx.generatorLabel,
-          cadenceLabel: feedIdx.cadenceLabel,
-          description: feedIdx.description,
-          matchType: 'historical_ip',
-          matchedRule: lookupKey,
-          lineNumber: sighting.lineNumber || null,
-          commentNote: `曾於 ${sighting.lastSeenDisplay} (Commit ${sighting.lastSeenSha}) 列入此動態清單，目前已於每日 00:00 歸零或滾動更新中退場`,
-          retentionPolicy: getRetentionPolicyByFeed(feedIdx),
-          isHistoricalOnly: true,
-          lastSeenDisplay: sighting.lastSeenDisplay,
-          lastSeenSha: sighting.lastSeenSha,
-        });
+        const lookupKey =
+          feedIdx.kind === 'fqdn' ? cleanedHostKey : effectiveBareIp;
+        const sighting = sightingMap.get(lookupKey);
+        if (sighting) {
+          historicalBlockMatches.push({
+            feedId: feedIdx.id,
+            fileName: feedIdx.fileName,
+            displayName: feedIdx.fileName,
+            category: feedIdx.category,
+            categoryLabel: feedIdx.categoryLabel,
+            isBlocklist: true,
+            generatorLabel: feedIdx.generatorLabel,
+            cadenceLabel: feedIdx.cadenceLabel,
+            description: feedIdx.description,
+            matchType: 'historical_ip',
+            matchedRule: lookupKey,
+            lineNumber: sighting.lineNumber || null,
+            commentNote: `曾於 ${sighting.lastSeenDisplay} (Commit ${sighting.lastSeenSha}) 列入此動態清單，目前已於每日 00:00 歸零或滾動更新中退場`,
+            retentionPolicy: getRetentionPolicyByFeed(feedIdx),
+            isHistoricalOnly: true,
+            lastSeenDisplay: sighting.lastSeenDisplay,
+            lastSeenSha: sighting.lastSeenSha,
+          });
+        }
       }
     }
 

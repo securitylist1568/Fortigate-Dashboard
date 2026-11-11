@@ -88,7 +88,7 @@ export function buildLongTermTrend(
     const { displayTime, shortTime, dateKey } = formatTaipeiTime(iso);
 
     parsedPoints.push({
-      sha: c.sha,
+      sha: c.sha.slice(0, 10),
       shortSha: c.sha.slice(0, 10),
       timestampIso: iso,
       displayTime,
@@ -141,7 +141,7 @@ export function buildLongTermTrend(
   }
 
   return {
-    points: parsedPoints,
+    points: parsedPoints.slice(-60),
     daily: Array.from(byDate.values()),
     last24hAdded,
     last24hRemoved,

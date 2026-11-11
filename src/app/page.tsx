@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import type {
   DashboardSnapshot,
   FeedCategory,
@@ -96,19 +96,25 @@ export default function ThreatDefenseDashboardPage() {
   const [activeArchNode, setActiveArchNode] = useState<string>('script_topn');
   const [showTechDeepDive, setShowTechDeepDive] = useState<boolean>(false);
 
+  // Refs to prevent redundant fetch loops and memoize IP lookup results in session
+  const encryptedPayloadRef = useRef<EncryptedVaultPayload | null>(null);
+  const hasInitializedRef = useRef<boolean>(false);
+  const ipQueryCacheRef = useRef<Map<string, IpQueryResponsePayload>>(new Map());
+
   const fetchEncryptedSnapshot = useCallback(async () => {
     setLoadingApi(true);
     setServerError(null);
     try {
-      const res = await fetch('/api/snapshot?t=' + Date.now(), {
-        cache: 'no-store',
-      });
+      // Use clean URL without ?t=Date.now() so Vercel Edge CDN s-maxage=180 cache is hit!
+      const res = await fetch('/api/snapshot');
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || `HTTP ${res.status}`);
       }
-      setEncryptedPayload(data as EncryptedVaultPayload);
-      return data as EncryptedVaultPayload;
+      const payloadObj = data as EncryptedVaultPayload;
+      encryptedPayloadRef.current = payloadObj;
+      setEncryptedPayload(payloadObj);
+      return payloadObj;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setServerError(msg);
@@ -132,7 +138,9 @@ export default function ThreatDefenseDashboardPage() {
 
       try {
         const targetPayload =
-          payloadToUse ?? encryptedPayload ?? (await fetchEncryptedSnapshot());
+          payloadToUse ??
+          encryptedPayloadRef.current ??
+          (await fetchEncryptedSnapshot());
         if (!targetPayload) {
           setVaultError('⚠️ 無法取得伺服器加密快照，請確認環境變數設定。');
           return false;
@@ -162,12 +170,15 @@ export default function ThreatDefenseDashboardPage() {
         return false;
       }
     },
-    [encryptedPayload, fetchEncryptedSnapshot]
+    [fetchEncryptedSnapshot]
   );
 
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
     (async () => {
-      // Check URL 1-Click parameters (?auth=, ?key=, ?token=) just like finance-free-xq-pub
+      // Check URL 1-Click parameters (?auth=, ?key=, ?token=)
       const urlParams = new URLSearchParams(window.location.search);
       const urlToken =
         urlParams.get('auth') || urlParams.get('key') || urlParams.get('token');
@@ -232,15 +243,27 @@ export default function ThreatDefenseDashboardPage() {
       return;
     }
 
+    // Normalize query key for client-side memoization and Edge CDN GET caching
+    const normalizedKey = targetText
+      .split(/[\s,;，；\n\r]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      .slice(0, 50)
+      .join(',');
+
+    const cachedResult = ipQueryCacheRef.current.get(normalizedKey);
+    if (cachedResult) {
+      setIpQueryError(null);
+      setIpQueryResult(cachedResult);
+      return;
+    }
+
     setIpQueryLoading(true);
     setIpQueryError(null);
     try {
-      const res = await fetch('/api/query-ip', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ queryText: targetText }),
-        cache: 'no-store',
-      });
+      const res = await fetch(
+        `/api/query-ip?q=${encodeURIComponent(normalizedKey)}`
+      );
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || `HTTP ${res.status}`);
@@ -249,6 +272,7 @@ export default function ThreatDefenseDashboardPage() {
         data as EncryptedVaultPayload,
         savedKey
       );
+      ipQueryCacheRef.current.set(normalizedKey, decrypted);
       setIpQueryResult(decrypted);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -289,7 +313,7 @@ export default function ThreatDefenseDashboardPage() {
             </span>
           </div>
           <span className="font-mono text-sky-400">
-            Automated Threat Feeds &amp; Defense System v2.4.1
+            Automated Threat Feeds &amp; Defense System v2.5.0
           </span>
         </div>
       </aside>
@@ -315,7 +339,7 @@ export default function ThreatDefenseDashboardPage() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-semibold">
                 <span>🛡️ 資安威脅情資與自動化封鎖清單監控平台</span>
                 <span>•</span>
-                <span>EDL Threat Feeds 動態發布系統 (v2.4.1)</span>
+                <span>EDL Threat Feeds 動態發布系統 (v2.5.0)</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-sky-200 to-sky-400 bg-clip-text text-transparent">
                 資安防護清單與威脅情資自動化更新系統
@@ -690,7 +714,7 @@ export default function ThreatDefenseDashboardPage() {
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-4">
               <div>
                 <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                  <span>🔍 IP / 網域 / 設備清單狀態即時查詢工具（Full-Repo `*.txt` + 近 10 日滾動歷史比對 v2.4.1）</span>
+                  <span>🔍 IP / 網域 / 設備清單狀態即時查詢工具（Full-Repo `*.txt` + 近 10 日滾動歷史比對 v2.5.0）</span>
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed">
                   100% 同步對齊來源儲存庫 <code>Fortigate</code> 內全部 <strong>25 份純文字清單檔 (`*.txt`)</strong> 之原始檔案名稱，同時檢索<strong>現行最新 HEAD 版本</strong>與<strong>過去 10 天動態滾動清單歷史</strong>。
