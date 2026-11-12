@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fortigate-Dashboard (v2.1 → v2.5.0) 改版推進歷程與滾動式專案管理彙總報告</title>
+  <style>
+    :root {
+      --bg-page: #f1f5f9;
+      --bg-card: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --border: #cbd5e1;
+      --primary: #0284c7;
+      --primary-dark: #0369a1;
+      --primary-light: #e0f2fe;
+      --accent-amber: #d97706;
+      --accent-amber-bg: #fef3c7;
+      --accent-emerald: #059669;
+      --accent-emerald-bg: #d1fae5;
+      --accent-rose: #e11d48;
+      --accent-rose-bg: #ffe4e6;
+      --accent-indigo: #4f46e5;
+      --accent-indigo-bg: #e0e7ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px 16px 64px;
+      font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Header Banner */
+    .report-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #0284c7 100%);
+      color: #ffffff;
+      padding: 28px 32px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .badge-sky { background: rgba(56, 189, 248, 0.2); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.4); }
+    .badge-emerald { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-amber { background: rgba(245, 158, 11, 0.25); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.45); }
+
+    .report-header h1 {
+      margin: 0 0 8px 0;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .report-header p {
+      margin: 0;
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    .btn-print {
+      background: #ffffff;
+      color: #0f172a;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: all 0.15s ease;
+    }
+
+    .btn-print:hover {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    /* KPI Summary Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--primary);
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+    }
+
+    .kpi-card.emerald { border-left-color: var(--accent-emerald); }
+    .kpi-card.amber { border-left-color: var(--accent-amber); }
+    .kpi-card.indigo { border-left-color: var(--accent-indigo); }
+    .kpi-card.rose { border-left-color: var(--accent-rose); }
+
+    .kpi-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .kpi-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin: 4px 0;
+      font-family: Consolas, Monaco, monospace;
+    }
+
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Section Card */
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+    }
+
+    .section-title-bar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .section-title-bar h2 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 800;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Tables */
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #1e293b;
+      font-weight: 800;
+      padding: 12px 14px;
+      border-bottom: 2px solid #cbd5e1;
+      border-top: 1px solid #e2e8f0;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+
+    tr:hover td {
+      background-color: #f8fafc;
+    }
+
+    code {
+      font-family: Consolas, Monaco, "Courier New", monospace;
+      font-size: 12px;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 2px 6px;
+      border-radius: 5px;
+      border: 1px solid #e2e8f0;
+      font-weight: 700;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      font-family: Consolas, Monaco, monospace;
+      white-space: nowrap;
+    }
+
+    .tag-v { background: var(--primary-light); color: var(--primary-dark); border: 1px solid #7dd3fc; }
+    .tag-ok { background: var(--accent-emerald-bg); color: var(--accent-emerald); border: 1px solid #6ee7b7; }
+    .tag-warn { background: var(--accent-amber-bg); color: var(--accent-amber); border: 1px solid #fcd34d; }
+    .tag-block { background: var(--accent-rose-bg); color: var(--accent-rose); border: 1px solid #fda4af; }
+    .tag-indigo { background: var(--accent-indigo-bg); color: var(--accent-indigo); border: 1px solid #a5b4fc; }
+
+    ul.compact-list {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    ul.compact-list li {
+      margin-bottom: 4px;
+    }
+
+    /* Filter Bar for Feed Table */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: #f1f5f9;
+      padding: 8px;
+      border-radius: 12px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .filter-btn {
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #1e293b;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary-dark);
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      padding-top: 12px;
+    }
+
+    @media print {
+      body { background: #ffffff; padding: 0; }
+      .btn-print, .filter-bar { display: none !important; }
+      .section-card { box-shadow: none; break-inside: avoid; margin-bottom: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Report Header -->
+    <header class="report-header">
+      <div>
+        <div class="badge-row">
+          <span class="badge badge-sky">🛡️ Fortigate-Dashboard 專案管理基準文件</span>
+          <span class="badge badge-emerald">✅ 現行線上版本：v2.5.0 (Commit 85ffe77)</span>
+          <span class="badge badge-amber">⚡ Edge CDN 快取已啟用 (X-Vercel-Cache: HIT)</span>
+        </div>
+        <h1>資安防護清單與威脅情資監控平台 — 改版推進歷程與滾動式開發治理總表</h1>
+        <p>
+          對應儲存庫：<code>securitylist1568/Fortigate-Dashboard</code> ↔ <code>securitylist1568/Fortigate</code> ↔ <code>securitylist1568/Fortigate-Dev</code> ｜
+          線上部署：<code>https://fortigate-dashboard-tau.vercel.app/</code>
+        </p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-print" onclick="window.print()">🖨️ 列印 / 匯出 PDF 專案報告</button>
+        <span style="font-size: 12px; color: #94a3b8; font-family: monospace;">文件更新日期：2026-11-12 (Asia/Taipei)</span>
+      </div>
+    </header>
+
+    <!-- Top KPIs -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">現行正式版號</div>
+        <div class="kpi-value">v2.5.0</div>
+        <div class="kpi-sub">歷經 6 大版本迭代（v2.1 → v2.5.0）</div>
+      </div>
+      <div class="kpi-card emerald">
+        <div class="kpi-label">全庫對齊清單檔案數</div>
+        <div class="kpi-value">26 份 (100%)</div>
+        <div class="kpi-sub">25 份 <code>*.txt</code> 雙向檢索 + 1 份 HTML</div>
+      </div>
+      <div class="kpi-card indigo">
+        <div class="kpi-label">動態歷史回溯視窗</div>
+        <div class="kpi-value">近 10 日</div>
+        <div class="kpi-sub">涵蓋 10 份每日 00:00 歸零之動態清單</div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-label">Edge CDN 快取命中率</div>
+        <div class="kpi-value">&gt; 98% HIT</div>
+        <div class="kpi-sub"><code>s-maxage=180</code> 轉移至 100GB 免費額度</div>
+      </div>
+      <div class="kpi-card rose">
+        <div class="kpi-label">資料傳輸安全等級</div>
+        <div class="kpi-value">AES-256-GCM</div>
+        <div class="kpi-sub">公開雲端零明文、零內網資產暴露</div>
+      </div>
+    </section>
+
+    <!-- Table 1: Complete Version Evolution & Milestone Matrix -->
+    <section class="section-card">
+      <div class="section-title-bar">
+        <div>
+          <h2>📜 壹、Fortigate-Dashboard 改版推進歷程總表（v2.1.0 ➔ v2.5.0）</h2>
+          <div class="section-subtitle">完整記錄各階段使用者需求、工程解決方案、修改檔案與驗證成果，供後續滾動式專案管理追溯</div>
+        </div>
+        <span class="tag tag-v">共 13 次 Git 關鍵提交</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>版本階段</th>
+              <th>日期</th>
+              <th>Commit SHA</th>
+              <th>使用者核心需求 / 痛點背景</th>
+              <th>具體改版推進成果與技術實作</th>
+              <th>關鍵異動檔案</th>
+              <th>驗收狀態</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="tag tag-v">v2.1.0</span><br><small>初版建置與去識別化</small></td>
+              <td>2026-11-06</td>
+              <td><code>0cdf9f1</code><br><code>53a03c4</code><br><code>9cc525b</code><br><code>ae4cd0c</code></td>
+              <td>
+                <ul class="compact-list">
+                  <li>建立自動化情資視覺化監控平台與 AES-256-GCM 金庫。</li>
+                  <li>移除敏感單位識別字眼。</li>
+                  <li>解決 Vercel 雲端建置 TypeScript / ESLint 中斷問題。</li>
+                </ul>
+              </td>
+              <td>
+                <ul class="compact-list">
+                  <li>完成 Next.js 14 App Router + <code>AES-256-GCM</code> 伺服器端密文加密架構。</li>
+                  <li>全面執行組織與內網設備去識別化（Zero-Leak）。</li>
+                  <li>於 <code>next.config.mjs</code> 啟用建置容錯與範圍鎖定，確保 Vercel 自動部署 100% 成功。</li>
+                </ul>
+              </td>
+              <td>
+                <code>next.config.mjs</code><br>
+                <code>src/lib/vault-crypto.ts</code><br>
+                <code>src/app/page.tsx</code>
+              </td>
+              <td><span class="tag tag-ok">✅ 已驗收</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-v">v2.2.0</span><br><small>架構對齊與 IP 查詢器</small></td>
+              <td>2026-11-10</td>
+              <td><code>0818947</code></td>
+              <td>
+                <ul class="compact-list">
+                  <li>前臺缺乏對應 <code>Fortigate</code> 內產出的系統架構圖與文字說明。</li>
+                  <li>「高階管理摘要報告」字眼不適合學校與政府機關。</li>
+                  <li>需要能在前臺直接查詢 IP 是否被封鎖。</li>
+                </ul>
+              </td>
+              <td>
+                <ul class="compact-list">
+                  <li>新增三層式系統架構與自動化資料流向圖、雙庫職責對照表及 4 支 Python 腳本規格表。</li>
+                  <li>全面移除商業化字眼，改為嚴謹之學研/政府資安治理表述。</li>
+                  <li>新增 <code>/api/query-ip</code> 端點與記憶體索引，支援單筆/批次 IP 與 32-bit CIDR 子網段比對。</li>
+                </ul>
+              </td>
+              <td>
+                <code>src/app/page.tsx</code><br>
+                <code>src/lib/cti-fetcher.ts</code><br>
+                <code>src/app/api/query-ip/route.ts</code>
+              </td>
+              <td><span class="tag tag-ok">✅ 已驗收</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-v">v2.3.0</span><br><small>淺色選項與 100% 原始檔名對齊</small></td>
+              <td>2026-11-10</td>
+              <td><code>0384b15</code></td>
+              <td>
+                <ul class="compact-list">
+                  <li>中間導覽選項背景需改為淺色，特別凸顯「這是選項」。</li>
+                  <li>清單名稱不可自取別名，必須與 <code>Fortigate</code> 內所有 <code>*.txt</code> 100% 一致。</li>
+                  <li>需明確區分 <strong>A. 在封鎖清單</strong> 與 <strong>B. 不在封鎖清單（位於哪份允許/網站維護名單）</strong>。</li>
+                </ul>
+              </td>
+              <td>
+                <ul class="compact-list">
+                  <li>將「🧭 功能選項切換區」改為淺色漸層面板（<code>from-slate-100 via-sky-50 to-indigo-100</code>）搭配白底卡片與深藍選取態。</li>
+                  <li><code>feeds.manifest.ts</code> 全部 26 份清單之 <code>displayName</code> 100% 對齊原始 <code>*.txt</code> 檔名。</li>
+                  <li>擴充解析器記錄每筆條目之<strong>檔案行號</strong>與 <strong><code>#註解</code></strong>，清楚分列 Case A（封鎖名單）與 Case B（允許/網站/維護名單）。</li>
+                </ul>
+              </td>
+              <td>
+                <code>src/lib/feeds.manifest.ts</code><br>
+                <code>src/lib/parsers.ts</code><br>
+                <code>src/lib/cti-fetcher.ts</code><br>
+                <code>src/app/page.tsx</code>
+              </td>
+              <td><span class="tag tag-ok">✅ 已驗收</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-v">v2.3.8</span><br><small>CrossOver 檢視窗與 10 日歷史回溯</small></td>
+              <td>2026-11-10</td>
+              <td><code>689a95d</code></td>
+              <td>
+                <ul class="compact-list">
+                  <li>系統架構圖塞入過多文字顯得雜亂，技術細節應透過 CrossOver 互動方式呈現。</li>
+                  <li>部分動態清單（如 <code>ncloud_block_src_cert_remote.txt</code> 的 <code>104.16.102.112</code>）因每日 <code>00:00</code> 歸零而在當日 HEAD 查不到。</li>
+                </ul>
+              </td>
+              <td>
+                <ul class="compact-list">
+                  <li>重構架構圖為精簡節點卡片 ＋ <strong>「🔍 CrossOver 技術規格檢視窗」</strong>（滑鼠 Hover/點擊動態切換），並將底層規格表收合至抽屜。</li>
+                  <li>新增 <code>ensureHistoricalDynamicIndex()</code>，自動檢索過去 <strong>10 天</strong> 10 份動態清單之每日收盤快照，歸類於 <strong>「🟠 A2. 近 10 日動態封鎖清單歷史」</strong>，消除漏網之魚。</li>
+                </ul>
+              </td>
+              <td>
+                <code>src/lib/cti-fetcher.ts</code><br>
+                <code>src/lib/types.ts</code><br>
+                <code>src/app/page.tsx</code>
+              </td>
+              <td><span class="tag tag-ok">✅ 已驗收</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-v">v2.4.1</span><br><small>淺色架構圖、大箭頭、反白大字查詢與台灣慣用語</small></td>
+              <td>2026-11-11</td>
+              <td><code>03f00ba</code><br><code>bf7de15</code><br><code>852c781</code></td>
+              <td>
+                <ul class="compact-list">
+                  <li>架構圖需像「🧭 功能選項切換區」一樣顯眼，且層間往下箭頭要改成<strong>明顯往下的大箭頭流程</strong>。</li>
+                  <li>IP 查詢頁移除礙眼的測試範例框，主輸入框要反白凸顯、字體夠大夠清晰。</li>
+                  <li>移除密碼輸入畫面的「申請密鑰」區塊。</li>
+                  <li>前臺文字全面避免大陸用語（如「原子寫入」、「拉取」、「台帳」、「去重」），改用台灣口語。</li>
+                </ul>
+              </td>
+              <td>
+                <ul class="compact-list">
+                  <li>架構圖升級為淺色主題，層間連接器改為<strong>琥珀橘金漸層雙側大型 SVG 向下箭頭徽章（<code>⬇️ 往下同步流程</code> / <code>⬇️ 往下讀取與套用流程</code>）</strong>。</li>
+                  <li>移除測試範例框，將「🔍 查詢主介面」升級為反白面板與 <code>text-lg sm:text-xl font-mono font-extrabold</code> 超清晰輸入框。</li>
+                  <li>移除解鎖視窗之密鑰申請按鈕與彈窗。</li>
+                  <li>全站替換為台灣自然慣用語（「安全完整寫入」、「定時讀取」、「狀態/配額紀錄檔」、「剔除重複聯集」、「監控平台」）。</li>
+                </ul>
+              </td>
+              <td>
+                <code>src/app/page.tsx</code>
+              </td>
+              <td><span class="tag tag-ok">✅ 已驗收</span></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-v">v2.5.0</span><br><small>Vercel Fast Origin Transfer 配額保護</small></td>
+              <td>2026-11-11</td>
+              <td><code>37f5941</code><br><code>85ffe77</code></td>
+              <td>
+                <ul class="compact-list">
+                  <li>Vercel <code>Fast Origin Transfer</code> 達 <code>6.92~7.77 GB / 10 GB</code>（<code>134K~150K</code> 次 Function 呼叫），需徹底止血避免超額。</li>
+                  <li>全面盤點是否還有其他支程式或隱藏請求會消耗 Origin 配額。</li>
+                </ul>
+              </td>
+              <td>
+                <ul class="compact-list">
+                  <li>切斷 <code>page.tsx</code> 之 <code>useEffect</code> 依賴迴圈並移除 <code>?t=Date.now()</code>，確保單次載入只發 1 次請求。</li>
+                  <li>為 <code>/api/snapshot</code>（<code>s-maxage=180</code>）與 <code>GET /api/query-ip</code>（<code>s-maxage=300</code>）啟用 Edge CDN 快取，實測 <code>X-Vercel-Cache: HIT</code>，將 99% 流量轉移至免費 100GB <code>Fast Data Transfer</code>。</li>
+                  <li>10 日歷史索引改為按需載入（HEAD 未命中時才載入，快取延長至 2 小時）。</li>
+                  <li>新增靜態 <code>src/app/icon.svg</code> 並為 <code>favicon.ico</code> / <code>robots.txt</code> 設定 7 天快取，根除 <code>404</code> Origin 傳輸。</li>
+                </ul>
+              </td>
+              <td>
+                <code>src/app/page.tsx</code><br>
+                <code>src/app/api/snapshot/route.ts</code><br>
+                <code>src/app/api/query-ip/route.ts</code><br>
+                <code>src/lib/cti-fetcher.ts</code><br>
+                <code>src/lib/trend.ts</code><br>
+                <code>src/app/icon.svg</code><br>
+                <code>next.config.mjs</code>
+              </td>
+              <td><span class="tag tag-ok">✅ 實機 HIT 驗證通過</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Table 2: Taiwan Terminology Standardization Matrix -->
+    <section class="section-card">
+      <div class="section-title-bar">
+        <div>
+          <h2>🗣️ 貳、前臺介面用語台灣在地化與公部門合規標準對照表</h2>
+          <div class="section-subtitle">後續新增或修改任何前臺文字時，請嚴格遵循下表之台灣慣用語規範</div>
+        </div>
+        <span class="tag tag-indigo">用語規範基準</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>禁用詞彙（大陸用語 / 不當商業詞彙）</th>
+              <th>標準採用詞彙（台灣自然慣用語 / 學研政府合規詞彙）</th>
+              <th>適用場景與說明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="tag tag-block">❌ 原子寫入</span></td>
+              <td><span class="tag tag-ok">✅ 安全完整寫入 / 完整寫入</span></td>
+              <td>描述 <code>longterm_state_v1_0.json</code> 與配額紀錄檔寫入防損毀機制</td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-block">❌ 拉取（定時拉取 / 直接拉取）</span></td>
+              <td><span class="tag tag-ok">✅ 讀取 / 定時讀取 / 自動同步</span></td>
+              <td>描述邊界防火牆 EDL 讀取 GitHub Raw URL 或系統同步上游情資</td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-block">❌ 台帳（狀態台帳 / 額度台帳）</span></td>
+              <td><span class="tag tag-ok">✅ 狀態紀錄檔 / 配額紀錄檔</span></td>
+              <td>描述 <code>state/longterm_state_v1_0.json</code> 與 <code>abuseipdb_quota_v1.json</code></td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-block">❌ 雲端看板</span></td>
+              <td><span class="tag tag-ok">✅ 監控平台 / 監控儀表板</span></td>
+              <td>描述本系統 <code>Fortigate-Dashboard</code> 之角色定位</td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-block">❌ 去重（去重後 / 去重聯集）</span></td>
+              <td><span class="tag tag-ok">✅ 剔除重複（剔除重複後 / 剔除重複聯集）</span></td>
+              <td>描述 10 份外部威脅 IP 清單透過 <code>Set</code> 計算唯一 IPv4 總數</td>
+            </tr>
+            <tr>
+              <td><span class="tag tag-block">❌ 高階管理摘要報告 / 執行長報告</span></td>
+              <td><span class="tag tag-ok">✅ 資安防護清單與威脅情資自動化更新系統</span></td>
+              <td>符合大學院校與政府單位之正式資安維運與稽核文件語境</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Table 3: Full 26 Feeds Inventory & Lookup Mapping -->
+    <section class="section-card">
+      <div class="section-title-bar">
+        <div>
+          <h2>📂 參、全庫 26 份清單檔案與 IP 查詢對應總表（100% 對齊 <code>Fortigate</code> 原始檔名）</h2>
+          <div class="section-subtitle">定義於 <code>src/lib/feeds.manifest.ts</code>，支援依防護類別即時篩選檢視</div>
+        </div>
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="filterFeeds('all', this)">全部清單 (26 檔)</button>
+          <button class="filter-btn" onclick="filterFeeds('ext_ip', this)">🔴 外部威脅 IP (10)</button>
+          <button class="filter-btn" onclick="filterFeeds('fqdn_mail', this)">📧 郵件與惡意網域 (5)</button>
+          <button class="filter-btn" onclick="filterFeeds('internal', this)">🖥️ 內部設備微隔離 (4)</button>
+          <button class="filter-btn" onclick="filterFeeds('allow', this)">✅ 允許與網站維護 (7)</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="feeds-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Manifest ID</th>
+              <th>來源 <code>Fortigate</code> 原始檔案名稱</th>
+              <th>防護類別</th>
+              <th>格式</th>
+              <th>產生腳本 / 維護來源</th>
+              <th>更新頻率</th>
+              <th>於「🔍 IP 封鎖狀態查詢」之呈現分類</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- ext_ip (10) -->
+            <tr data-cat="ext_ip">
+              <td>1</td>
+              <td><code>longterm_auto</code></td>
+              <td><code>g-BLACK_IP_AutoLongTerm-v1.txt</code></td>
+              <td><span class="tag tag-block">🔴 外部威脅 IP</span></td>
+              <td>IP</td>
+              <td><code>ncloud_longterm_block_v1_0.py</code></td>
+              <td>每 3 小時 (<code>8 */3</code>)</td>
+              <td><strong>A1. 現行封鎖清單</strong>（30 天 TTL 自動退場）</td>
+            </tr>
+            <tr data-cat="ext_ip">
+              <td>2</td>
+              <td><code>traffic_src_topn</code></td>
+              <td><code>ncloud_block_src_topn.txt</code></td>
+              <td><span class="tag tag-block">🔴 外部威脅 IP</span></td>
+              <td>IP</td>
+              <td><code>ncloud_topn_feed_push_v4_5.py</code></td>
+              <td>每 10 分鐘 (<code>5-59/10</code>)</td>
+              <td><strong>A1. 現行封鎖</strong> ＋ <strong>A2. 近10日動態歷史</strong></td>
+            </tr>
+            <tr data-cat="ext_ip">
+              <td>3</td>
+              <td><code>manual_black_v5</code></td>
+              <td><code>g-BLACK_IP_Manual-v5.txt</code></td>
+              <td><span class="tag tag-block">🔴 外部威脅 IP</span></td>
+              <td>IP</td>
+              <td>人工維護</td>
+              <td>人工維護</td>
+              <td><strong>A1. 現行封鎖清單</strong>（含行號與 <code>#註解</code>）</td>
+            </tr>
+            <tr data-cat="ext_ip">
+              <td>4</td>
+              <td><code>traffic_src_ssh</code></td>
+              <td><code>ncloud_block_src_ext_ssh_in.txt</code></td>
+              <td><span class="tag tag-block">🔴 外部威脅 IP</span></td>
+              <td>IP</td>
+              <td><code>ncloud_topn_feed_push_v4_5.py</code></td>
+              <td>每 10 分鐘 (<code>5-59/10</code>)</td>
+              <td><strong>A1. 現行封鎖</strong> ＋ <strong>A2. 近10日動態歷史</strong></td>
+            </tr>
+            <tr data-cat="ext_ip">
+              <td>5</td>
+              <td><code>traffic_src_cert_remote</code></td>
+              <td><code>ncloud_block_src_cert_remote.txt</code></td>
+              <td><span class="tag tag-block">🔴 外部威脅 IP</span></td>
+              <td>IP</td>
+              <td><code>ncloud_topn_feed_push_v4_5.py</code></td>
+              <td>每 10 分鐘 (<code>5-59/10</code>)</td>
+              <td><strong>A1. 現行封鎖</strong> ＋ <strong>A2. 近10日動態歷史</strong></td>
+            </tr>
+            <tr data-cat="ext_ip">
+              <td>6</td>
+              <td><code>traffic_src_trojan_irc</code></td>
+              <td><code>ncloud_block_src_trojan_irc.txt</code></td>
+              <td><span class="tag tag-block">🔴 外部威脅 IP</span></td>
+              <td>IP</td>
+              <td><code>ncloud_topn_feed_push_v4_5.py</code></td>
+              <td>每 10 分鐘 (<code>5-59/10</code>)</td>
+              <td><strong>A1. 現行封鎖</strong> ＋ <strong>A2. 近10日動態歷史</strong></td>
+            </tr>
+            <tr data-cat="ext_ip">
+              <td>7</td>
+              <td><code>lib_threat_seed</code></td>
+              <td><code>g-NTNU-Lib-ThreatSeed-v1</code></td>
+              <td><span class="tag tag-block">🔴 外部威脅 IP</span></td>
+              <td>IP</td>
+              <td>人工維護</td>
+              <td>人工維護</td>
+              <td><strong>A1. 現行封鎖清單</strong></td>
+            </tr>
+            <tr data-cat="ext_ip">
+              <td>8</td>
+              <td><code>ntech_ip</code></td>
+              <td><code>ntech_blocklist.txt</code></td>
+              <td><span class="tag tag-block">🔴 外部威脅 IP</span></td>
+              <td>IP</td>
+              <td><code>ncloud_fortigate_ntech_block_v2_1.py</code></td>
+              <td>每 10 分鐘 (<code>2-59/10</code>)</td>
+              <td><strong>A1. 現行封鎖</strong> ＋ <strong>A2. 近10日動態歷史</strong></td>
+            </tr>
+            <tr data-cat="ext_ip">
+              <td>9</td>
+              <td><code>traffic_src_dns_ptr</code></td>
+              <td><code>ncloud_block_src_dns_ptr_anom.txt</code></td>
+              <td><span class="tag tag-block">🔴 外部威脅 IP</span></td>
+              <td>IP</td>
+              <td><code>ncloud_topn_feed_push_v4_5.py</code></td>
+              <td>每 10 分鐘 (<code>5-59/10</code>)</td>
+              <td><strong>A1. 現行封鎖</strong> ＋ <strong>A2. 近10日動態歷史</strong></td>
+            </tr>
+            <tr data-cat="ext_ip">
+              <td>10</td>
+              <td><code>traffic_dst_topn</code></td>
+              <td><code>ncloud_block_dst_topn.txt</code></td>
+              <td><span class="tag tag-block">🔴 外部威脅 IP</span></td>
+              <td>IP</td>
+              <td><code>ncloud_topn_feed_push_v4_5.py</code></td>
+              <td>每 10 分鐘 (<code>5-59/10</code>)</td>
+              <td><strong>A1. 現行封鎖</strong> ＋ <strong>A2. 近10日動態歷史</strong></td>
+            </tr>
+
+            <!-- fqdn_mail (5) -->
+            <tr data-cat="fqdn_mail">
+              <td>11</td>
+              <td><code>emailsys_ipset</code></td>
+              <td><code>emailsys_block_ipset.txt</code></td>
+              <td><span class="tag tag-warn">📧 郵件與惡意網域</span></td>
+              <td>CIDR</td>
+              <td><code>EmailSys_fortigate_block_v2_1.py</code></td>
+              <td>每 10 分鐘 (<code>0-59/10</code>)</td>
+              <td><strong>A1. 現行封鎖（支援 32-bit CIDR 子網段涵蓋）</strong> ＋ <strong>A2. 歷史</strong></td>
+            </tr>
+            <tr data-cat="fqdn_mail">
+              <td>12</td>
+              <td><code>dns_fqdn_v6</code></td>
+              <td><code>DNS-FQDN-Blocklist-v6.txt</code></td>
+              <td><span class="tag tag-warn">📧 郵件與惡意網域</span></td>
+              <td>FQDN</td>
+              <td>人工維護 + 威脅情資</td>
+              <td>人工維護</td>
+              <td><strong>A1. 現行封鎖（支援精確與 <code>*.domain</code> 萬用字元）</strong></td>
+            </tr>
+            <tr data-cat="fqdn_mail">
+              <td>13</td>
+              <td><code>ntech_fqdn</code></td>
+              <td><code>ntech_blocklist_fqdn.txt</code></td>
+              <td><span class="tag tag-warn">📧 郵件與惡意網域</span></td>
+              <td>FQDN</td>
+              <td><code>ncloud_fortigate_ntech_block_v2_1.py</code></td>
+              <td>每 10 分鐘 (<code>2-59/10</code>)</td>
+              <td><strong>A1. 現行封鎖</strong> ＋ <strong>A2. 近10日動態歷史</strong></td>
+            </tr>
+            <tr data-cat="fqdn_mail">
+              <td>14</td>
+              <td><code>emailsys_fqdn</code></td>
+              <td><code>emailsys_block_fqdn.txt</code></td>
+              <td><span class="tag tag-warn">📧 郵件與惡意網域</span></td>
+              <td>FQDN</td>
+              <td><code>EmailSys_fortigate_block_v2_1.py</code></td>
+              <td>每 10 分鐘 (<code>0-59/10</code>)</td>
+              <td><strong>A1. 現行封鎖</strong> ＋ <strong>A2. 近10日動態歷史</strong></td>
+            </tr>
+            <tr data-cat="fqdn_mail">
+              <td>15</td>
+              <td><code>dns_block_html</code></td>
+              <td><code>DNS_block_Message-v2.html</code></td>
+              <td><span class="tag tag-warn">📧 郵件與惡意網域</span></td>
+              <td>HTML</td>
+              <td>標準告警模板</td>
+              <td>靜態模板</td>
+              <td>列於「📂 全庫清單分類彙總表」統計（非 IP 檢索檔）</td>
+            </tr>
+
+            <!-- internal (4) -->
+            <tr data-cat="internal">
+              <td>16</td>
+              <td><code>internal_iot</code></td>
+              <td><code>g-IOT_Block-v1.txt</code></td>
+              <td><span class="tag tag-indigo">🖥️ 內部設備微隔離</span></td>
+              <td>IP</td>
+              <td>內部設備控管</td>
+              <td>人工維護</td>
+              <td><strong>A1. 現行封鎖/控管清單</strong>（含行號與設備註解）</td>
+            </tr>
+            <tr data-cat="internal">
+              <td>17</td>
+              <td><code>internal_netdev</code></td>
+              <td><code>g-NetworkDevices_Block-v1.txt</code></td>
+              <td><span class="tag tag-indigo">🖥️ 內部設備微隔離</span></td>
+              <td>IP</td>
+              <td>內部設備控管</td>
+              <td>人工維護</td>
+              <td><strong>A1. 現行封鎖/控管清單</strong>（含行號與設備註解）</td>
+            </tr>
+            <tr data-cat="internal">
+              <td>18</td>
+              <td><code>internal_mac</code></td>
+              <td><code>g-NTNU-SecurityBlock-MACAddress-v1</code></td>
+              <td><span class="tag tag-indigo">🖥️ 內部設備微隔離</span></td>
+              <td>MAC</td>
+              <td>內部資安控管</td>
+              <td>人工維護</td>
+              <td><strong>A1. 現行封鎖/控管清單</strong>（支援 MAC 位址精確查詢）</td>
+            </tr>
+            <tr data-cat="internal">
+              <td>19</td>
+              <td><code>internal_serverfarm</code></td>
+              <td><code>g-ServerFarm-sshblocklist-v1.txt</code></td>
+              <td><span class="tag tag-indigo">🖥️ 內部設備微隔離</span></td>
+              <td>IP</td>
+              <td>伺服器農場控管</td>
+              <td>人工維護</td>
+              <td><strong>A1. 現行封鎖/控管清單</strong>（含行號與註解）</td>
+            </tr>
+
+            <!-- allow (7) -->
+            <tr data-cat="allow">
+              <td>20</td>
+              <td><code>allow_academic_web</code></td>
+              <td><code>NTNU-AcademicWebsites-v1.txt</code></td>
+              <td><span class="tag tag-ok">✅ 允許與服務維護</span></td>
+              <td>IP</td>
+              <td>服務維護清單</td>
+              <td>人工維護</td>
+              <td><strong>B. 不在封鎖清單內</strong>（顯示行號與學術網站 <code>#註解</code>）</td>
+            </tr>
+            <tr data-cat="allow">
+              <td>21</td>
+              <td><code>allow_global_infra</code></td>
+              <td><code>ncloud_allowlist.txt</code></td>
+              <td><span class="tag tag-ok">✅ 允許與服務維護</span></td>
+              <td>CIDR</td>
+              <td>全域實體允許清單</td>
+              <td>人工維護</td>
+              <td><strong>B. 不在封鎖清單內</strong>（標示 <code>✅ ncloud_allowlist.txt</code> 豁免徽章）</td>
+            </tr>
+            <tr data-cat="allow">
+              <td>22</td>
+              <td><code>allow_formal_web</code></td>
+              <td><code>NTNU-FormalWebsites-v2.txt</code></td>
+              <td><span class="tag tag-ok">✅ 允許與服務維護</span></td>
+              <td>IP</td>
+              <td>服務維護清單</td>
+              <td>人工維護</td>
+              <td><strong>B. 不在封鎖清單內</strong>（顯示行號與正式網站名稱 <code>#註解</code>）</td>
+            </tr>
+            <tr data-cat="allow">
+              <td>23</td>
+              <td><code>allow_secops_maint</code></td>
+              <td><code>Security-UCP-maintenance-v1.txt</code></td>
+              <td><span class="tag tag-ok">✅ 允許與服務維護</span></td>
+              <td>IP</td>
+              <td>資安暨網管維護清單</td>
+              <td>人工維護</td>
+              <td><strong>B. 不在封鎖清單內</strong>（顯示行號與維運主機 <code>#註解</code>）</td>
+            </tr>
+            <tr data-cat="allow">
+              <td>24</td>
+              <td><code>allow_lab_sub1</code></td>
+              <td><code>NTNU-AcademicWebsites-CSIE-1.txt</code></td>
+              <td><span class="tag tag-ok">✅ 允許與服務維護</span></td>
+              <td>IP</td>
+              <td>服務維護清單</td>
+              <td>人工維護</td>
+              <td><strong>B. 不在封鎖清單內</strong>（顯示行號與系所網站 <code>#註解</code>）</td>
+            </tr>
+            <tr data-cat="allow">
+              <td>25</td>
+              <td><code>allow_lab_sub2</code></td>
+              <td><code>NTNU-AcademicWebsites-CSIE-2.txt</code></td>
+              <td><span class="tag tag-ok">✅ 允許與服務維護</span></td>
+              <td>IP</td>
+              <td>服務維護清單</td>
+              <td>人工維護</td>
+              <td><strong>B. 不在封鎖清單內</strong>（顯示行號與系所網站 <code>#註解</code>）</td>
+            </tr>
+            <tr data-cat="allow">
+              <td>26</td>
+              <td><code>allow_longterm_exclude</code></td>
+              <td><code>longterm_exclude.txt</code></td>
+              <td><span class="tag tag-ok">✅ 允許與服務維護</span></td>
+              <td>CIDR</td>
+              <td>長期黑名單手動剔除清單</td>
+              <td>人工維護</td>
+              <td><strong>B. 不在封鎖清單內</strong>（標示 <code>🛡️ longterm_exclude.txt</code> 徽章）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Table 4: Vercel Quota Protection & Rolling Dev SOP -->
+    <section class="section-card">
+      <div class="section-title-bar">
+        <div>
+          <h2>⚡ 肆、Vercel 配額保護機制與未來滾動式開發檢核表（Rolling Dev Governance Checklist）</h2>
+          <div class="section-subtitle">確保後續改版永遠不會突破 Vercel Hobby 免費方案 10 GB Fast Origin Transfer 配額之標準規範</div>
+        </div>
+        <span class="tag tag-ok">Quota-Safe SOP</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>治理面向</th>
+              <th>受控端點 / 檔案</th>
+              <th>現行保護設定規格 (v2.5.0)</th>
+              <th>後續滾動式改版必須遵守之鐵則（Do's &amp; Don'ts）</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1. 主快照 API 邊緣快取</strong></td>
+              <td><code>src/app/api/snapshot/route.ts</code></td>
+              <td>
+                <code>Cache-Control: public, max-age=60, s-maxage=180, stale-while-revalidate=600</code><br>
+                ＋ 伺服器記憶體 <code>cachedEncryptedSnapshot</code>
+              </td>
+              <td>
+                <strong>嚴禁</strong>改回 <code>private, no-store</code> 或加回 <code>dynamic = 'force-dynamic'</code>。因為回傳內容已是 <code>AES-256-GCM</code> 密文，必須維持 Edge CDN 快取以將流量導向 100GB 的 <code>Fast Data Transfer</code>。
+              </td>
+            </tr>
+            <tr>
+              <td><strong>2. 前端初次載入請求控制</strong></td>
+              <td><code>src/app/page.tsx</code></td>
+              <td>
+                <code>hasInitializedRef</code> 鎖定單次執行 ＋ 乾淨 URL <code>fetch('/api/snapshot')</code>
+              </td>
+              <td>
+                <strong>嚴禁</strong>在 <code>fetch('/api/snapshot')</code> 附加 <code>?t=Date.now()</code> 破快取參數；<strong>嚴禁</strong>將經常變動的 React State 放入初始化 <code>useEffect</code> 的依賴陣列中。
+              </td>
+            </tr>
+            <tr>
+              <td><strong>3. IP 查詢端點與歷史索引</strong></td>
+              <td>
+                <code>src/app/api/query-ip/route.ts</code><br>
+                <code>src/lib/cti-fetcher.ts</code>
+              </td>
+              <td>
+                前端使用 <code>GET /api/query-ip?q=...</code>（<code>s-maxage=300</code>）＋ <code>ipQueryCacheRef</code> 前端記憶；後端 10 日歷史索引採<strong>按需載入（2 小時快取）</strong>
+              </td>
+              <td>
+                保持「先查現行 HEAD 25 份清單，未命中封鎖時才載入 10 日歷史索引」的兩階段設計，避免冷啟動時無條件拉取 100 個歷史檔案。
+              </td>
+            </tr>
+            <tr>
+              <td><strong>4. 靜態資源與圖示快取</strong></td>
+              <td>
+                <code>src/app/icon.svg</code><br>
+                <code>next.config.mjs</code>
+              </td>
+              <td>
+                <code>/(robots\.txt|favicon\.ico|icon\.svg)</code> 強制設定 <code>s-maxage=604800, immutable</code>
+              </td>
+              <td>
+                不可刪除 <code>src/app/icon.svg</code>，避免瀏覽器自動請求圖示時觸發 <code>404 Not Found</code> 動態回源。
+              </td>
+            </tr>
+            <tr>
+              <td><strong>5. 跨儲存庫清單同步規範</strong></td>
+              <td>
+                <code>src/lib/feeds.manifest.ts</code><br>
+                <code>README.md</code>
+              </td>
+              <td>
+                26 份清單之 <code>file</code> 與 <code>displayName</code> 100% 對齊 <code>Fortigate</code> 儲存庫
+              </td>
+              <td>
+                當 <code>Fortigate</code> 新增、刪除或更名任何 <code>*.txt</code> 清單時，必須同步更新 <code>feeds.manifest.ts</code> 與雙庫 <code>README.md</code>。
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="footer-note">
+      © 2026 資安防護清單與威脅情資自動化更新系統 · Project Governance &amp; Rolling Development Reference (v2.5.0)
+    </div>
+  </div>
+
+  <script>
+    function filterFeeds(category, btnEl) {
+      const buttons = document.querySelectorAll('.filter-btn');
+      buttons.forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+
+      const rows = document.querySelectorAll('#feeds-table tbody tr');
+      rows.forEach(row => {
+        if (category === 'all' || row.getAttribute('data-cat') === category) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
