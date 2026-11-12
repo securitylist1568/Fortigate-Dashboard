@@ -28,7 +28,7 @@
 - **100% 原始檔名對齊與三大命中分類**：
   - **🔴 A1. 落在現行封鎖清單（HEAD `blockMatches`）**：精準列出所在 `Fortigate` 原始檔案名稱（如 `g-BLACK_IP_AutoLongTerm-v1.txt`、`emailsys_block_ipset.txt`、`g-NetworkDevices_Block-v1.txt`）、命中型態（精確 IP、32-bit CIDR 子網段涵蓋、萬用字元網域、MAC）、**檔案行號（Line Number）** 與 **`#註解` 內容**。
   - **🟠 A2. 落在近 10 日動態封鎖清單歷史（`historicalBlockMatches`）**：針對每日 `00:00` 自動歸零重算的 10 份動態清單（如 `ncloud_block_src_cert_remote.txt`、`ncloud_block_src_topn.txt` 等），自動建立過去 10 天每日收盤快照索引。即使某 IP（如 `104.16.102.112`）因當日歸零而不在今日最新 HEAD 中，仍能查出其過去 10 天最後出現之日期、Commit SHA 與當時行號，解決本機舊檔與雲端即時狀態之落差。
-  - **🟢 B. 不在封鎖清單內 — 位於允許/網站/維護名單（`allowMatches`）**：精準定位並列舉位於 `ncloud_allowlist.txt`、`longterm_exclude.txt`、`NTNU-FormalWebsites-v2.txt`、`NTNU-AcademicWebsites-CSIE-1.txt`、`Security-UCP-maintenance-v1.txt` 等保護名單之行號與主機用途註解。
+  - **🟢 B. 不在封鎖清單內 — 位於允許/網站/維護名單（`allowMatches`）**：精準定位並列舉位於全域允許清單、手動剔除清單或重要服務維護名單之行號與主機用途註解。
 
 ### 3. 🔐 公開儲存庫 ＋ 伺服器端 `AES-256-GCM` 零知識金庫（Zero-Secret in Code）
 - 原始碼與公開網路傳輸中**絕不暴露任何明文統計或內網資產明細**。
@@ -55,10 +55,10 @@
 
 | 類別 | 檔案數量 | 對應 `Fortigate` 原始檔案名稱 (`*.txt` / `*.html`) | 產生腳本 / 維護方式 |
 | :--- | :---: | :--- | :--- |
-| **🔴 外部威脅 IP 封鎖清單 (`ext_ip`)** | **10 份** | `g-BLACK_IP_AutoLongTerm-v1.txt`、`g-BLACK_IP_Manual-v5.txt`、`g-NTNU-Lib-ThreatSeed-v1`、`ntech_blocklist.txt`、`ncloud_block_src_topn.txt`、`ncloud_block_src_ext_ssh_in.txt`、`ncloud_block_src_cert_remote.txt`、`ncloud_block_src_trojan_irc.txt`、`ncloud_block_src_dns_ptr_anom.txt`、`ncloud_block_dst_topn.txt` | `longterm_block_v1_0.py`、`topn_feed_push_v4_5.py`、`ntech_block_v2_1.py`、人工維護 |
-| **📧 郵件與惡意網域封鎖 (`fqdn_mail`)** | **5 份** | `emailsys_block_ipset.txt`、`emailsys_block_fqdn.txt`、`ntech_blocklist_fqdn.txt`、`DNS-FQDN-Blocklist-v6.txt`、`DNS_block_Message-v2.html` *(HTML 模板)* | `EmailSys_fortigate_block_v2_1.py`、`ntech_block_v2_1.py`、人工維護 |
-| **🖥️ 內部設備封鎖控管 (`internal`)** | **4 份** | `g-IOT_Block-v1.txt`、`g-NetworkDevices_Block-v1.txt`、`g-NTNU-SecurityBlock-MACAddress-v1`、`g-ServerFarm-sshblocklist-v1.txt` | 內部微隔離控管（人工造冊維護） |
-| **✅ 允許清單與服務維護 (`allow`)** | **7 份** | `ncloud_allowlist.txt`、`longterm_exclude.txt`、`NTNU-FormalWebsites-v2.txt`、`NTNU-AcademicWebsites-v1.txt`、`NTNU-AcademicWebsites-CSIE-1.txt`、`NTNU-AcademicWebsites-CSIE-2.txt`、`Security-UCP-maintenance-v1.txt` | 全域防誤封白名單、手動剔除清單、重要網站與資安維運主機清冊 |
+| **🔴 外部威脅 IP 封鎖清單 (`ext_ip`)** | **10 份** | 自動化長期黑名單、人工維護黑名單、外部威脅種子、CERT 外部情資與 6 份流量異常偵測清單 (`*.txt`) | `longterm`、`topn`、`ntech`、人工維護 |
+| **📧 郵件與惡意網域封鎖 (`fqdn_mail`)** | **5 份** | 郵件閘道 CIDR 封鎖集、郵件惡意網域、CERT 惡意網域、DNS FQDN 封鎖清單与阻斷警告頁 (`*.txt` / `*.html`) | `emailsys`、`ntech`、人工維護 |
+| **🖥️ 內部設備封鎖控管 (`internal`)** | **4 份** | 內部 IoT、網通設備、伺服器群對外連線與特定設備存取控管清單 | 內部微隔離控管（人工造冊維護） |
+| **✅ 允許清單與服務維護 (`allow`)** | **7 份** | 全域實體允許清單、長期黑名單手動剔除清單與重要網路服務維護清冊 | 全域防誤封白名單與服務維護清冊 |
 
 ---
 
