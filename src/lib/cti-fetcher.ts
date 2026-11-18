@@ -361,7 +361,7 @@ export function computeSnapshotFromRawInputs(params: {
   const fileSizePct = Number(((longTermBytes / fileSizeLimitBytes) * 100).toFixed(1));
 
   const totalAllEntries = rawExternalBlockEntries + protectedAndInternalEntries;
-  const systemStandardLimit = 300000;
+  const systemStandardLimit = 200000;
   const systemStandardPct = Number(
     ((totalAllEntries / systemStandardLimit) * 100).toFixed(1)
   );

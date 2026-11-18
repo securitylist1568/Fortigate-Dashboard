@@ -1429,9 +1429,8 @@ export default function ThreatDefenseDashboardPage() {
                     summary:
                       '透過 External Connector 定時讀取第二層發布庫之純文字清單，即時執行邊界 IP/CIDR 阻斷、DNS 惡意網域過濾與內網微隔離策略。',
                     files: [
-                      '單一清單標準上限：131,072 筆',
-                      '單一檔案大小上限：10 MB',
-                      '全機指標容量：30 萬～500 萬筆',
+                      'firewall.address 全系統上限：200,000 筆 (FortiOS 7.4.12)',
+                      '單一清單檔案大小上限：10 MB',
                     ],
                     techSpecs: [
                       '支援高併發邊界封包過濾與自訂 DNS 阻斷警告頁面回應',
@@ -2478,7 +2477,7 @@ export default function ThreatDefenseDashboardPage() {
                 📊 肆、邊界防護設備容量水位監控與預警線（Capacity Watermarks）
               </h2>
               <p className="text-xs text-slate-400">
-                針對單一外部動態清單 131,072 筆標準上限設置 70%（黃燈預警）與 85%（紅燈警戒）水位線
+                依據 Fortinet 原廠 FortiOS 7.4.12 規格（<code>firewall.address</code> VDOM/GLOBAL 上限 200,000 筆）設置 70%（黃燈預警）與 85%（紅燈警戒）水位線
               </p>
 
               {!isUnlocked || !snapshot ? (
@@ -2490,65 +2489,7 @@ export default function ThreatDefenseDashboardPage() {
                   <div>
                     <div className="flex justify-between text-xs mb-1.5">
                       <span className="text-slate-200 font-semibold">
-                        1. 單一動態清單標準筆數上限 (LongTerm{' '}
-                        {snapshot.capacity.longTermCount.toLocaleString()} /{' '}
-                        {snapshot.capacity.singleListLimit.toLocaleString()} 筆)
-                      </span>
-                      <span
-                        className={`font-bold ${
-                          snapshot.capacity.singleListAlertLevel === 'critical'
-                            ? 'text-rose-400'
-                            : snapshot.capacity.singleListAlertLevel === 'warning'
-                            ? 'text-amber-300'
-                            : 'text-emerald-400'
-                        }`}
-                      >
-                        {snapshot.capacity.singleListPct}% (
-                        {snapshot.capacity.singleListAlertLevel === 'critical'
-                          ? '🔴 超過 85% 警戒線'
-                          : snapshot.capacity.singleListAlertLevel === 'warning'
-                          ? '🟡 超過 70% 預警線'
-                          : '🟢 安全水位 <70%'}
-                        )
-                      </span>
-                    </div>
-                    <div className="w-full h-3 rounded-full bg-slate-800 overflow-hidden relative">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${Math.min(100, snapshot.capacity.singleListPct)}%`,
-                          background:
-                            snapshot.capacity.singleListAlertLevel === 'critical'
-                              ? '#ef4444'
-                              : snapshot.capacity.singleListAlertLevel === 'warning'
-                              ? '#f59e0b'
-                              : '#38bdf8',
-                        }}
-                      />
-                    </div>
-                    <div className="text-[11px] text-slate-400 mt-1 flex flex-wrap justify-between gap-2">
-                      <span>
-                        • 首批 30 天 TTL 退場日：
-                        <strong className="text-slate-200">
-                          {snapshot.capacity.firstTtlExpiryDate}
-                        </strong>
-                      </span>
-                      {snapshot.capacity.estimatedDaysTo100k !== null && (
-                        <span>
-                          • 按近3日增速預估：約{' '}
-                          <strong className="text-amber-300">
-                            {snapshot.capacity.estimatedDaysTo100k} 天
-                          </strong>
-                          後達 10 萬筆
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-slate-200 font-semibold">
-                        2. 單一清單檔案大小上限 (
+                        1. 單一清單檔案大小上限 (
                         {formatBytes(snapshot.capacity.longTermBytes)} / 10.00 MB)
                       </span>
                       <span className="font-bold text-emerald-400">
@@ -2568,27 +2509,64 @@ export default function ThreatDefenseDashboardPage() {
                   <div>
                     <div className="flex justify-between text-xs mb-1.5">
                       <span className="text-slate-200 font-semibold">
-                        3. 全系統總指標標準容量 (
+                        2. 全系統總指標標準容量 (
                         {(
                           snapshot.rawExternalBlockEntries +
                           snapshot.protectedAndInternalEntries
                         ).toLocaleString()}{' '}
-                        / 300,000 筆)
+                        / {snapshot.capacity.systemStandardLimit.toLocaleString()} 筆)
                       </span>
-                      <span className="font-bold text-sky-400">
-                        {snapshot.capacity.systemStandardPct}%
+                      <span
+                        className={`font-bold ${
+                          snapshot.capacity.systemStandardPct >= 85
+                            ? 'text-rose-400'
+                            : snapshot.capacity.systemStandardPct >= 70
+                            ? 'text-amber-300'
+                            : 'text-sky-400'
+                        }`}
+                      >
+                        {snapshot.capacity.systemStandardPct}% (
+                        {snapshot.capacity.systemStandardPct >= 85
+                          ? '🔴 超過 85% 警戒線'
+                          : snapshot.capacity.systemStandardPct >= 70
+                          ? '🟡 超過 70% 預警線'
+                          : '🟢 安全水位 <70%'}
+                        )
                       </span>
                     </div>
-                    <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div className="w-full h-3 rounded-full bg-slate-800 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-sky-500"
+                        className="h-full rounded-full transition-all"
                         style={{
                           width: `${Math.min(
                             100,
                             snapshot.capacity.systemStandardPct
                           )}%`,
+                          background:
+                            snapshot.capacity.systemStandardPct >= 85
+                              ? '#ef4444'
+                              : snapshot.capacity.systemStandardPct >= 70
+                              ? '#f59e0b'
+                              : '#38bdf8',
                         }}
                       />
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-1.5 flex flex-wrap justify-between gap-2">
+                      <span>
+                        • 首批 30 天 TTL 退場日：
+                        <strong className="text-slate-200">
+                          {snapshot.capacity.firstTtlExpiryDate}
+                        </strong>
+                      </span>
+                      {snapshot.capacity.estimatedDaysTo100k !== null && (
+                        <span>
+                          • 長期清單按近 3 日增速預估：約{' '}
+                          <strong className="text-amber-300">
+                            {snapshot.capacity.estimatedDaysTo100k} 天
+                          </strong>
+                          後達 10 萬筆
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -2598,7 +2576,7 @@ export default function ThreatDefenseDashboardPage() {
                     </div>
                     <p className="leading-relaxed">
                       由於長期協防黑名單於 2026-10-30 啟用 30 天 TTL，在{' '}
-                      <strong>2026-11-29 首批過期退場前</strong>屬「只進不出」累積期。當單一清單水位突破 70%（約 91,750 筆）時，可採取：(1) 將 TTL 由 30 天調降為 21 天，或 (2) 拆分為兩份動態清單分流掛載。
+                      <strong>2026-11-29 首批過期退場前</strong>屬「只進不出」累積期。當全系統總指標水位突破 70%（約 140,000 筆）時，可採取將長期黑名單 TTL 由 30 天調降為 21 天，或檢視精簡重複清單。
                     </p>
                   </div>
                 </div>
