@@ -72,7 +72,7 @@ export const FEEDS_MANIFEST: FeedDefinition[] = [
     categoryLabel: '🔴 外部威脅 IP 封鎖清單',
     kind: 'ip',
     generator: 'longterm',
-    generatorLabel: 'ncloud_longterm_block_v1_0.py (v1.0.1)',
+    generatorLabel: 'ncloud_longterm_block_v1_0.py (v1.0.2)',
     cadenceMinutes: 180,
     cadenceLabel: '每 3 小時 (8 */3)',
     description: '自動化長期黑名單 IP（過去 10 天跨 ≥3 個日曆日重複出現 OR 列名於 AbuseIPDB Blacklist，含 30 天 TTL 自動退場）',

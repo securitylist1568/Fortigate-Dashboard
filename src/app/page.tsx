@@ -1440,7 +1440,7 @@ export default function ThreatDefenseDashboardPage() {
                   enforce_dash: {
                     layer: '第三層：邊界執行與監控層',
                     badge: 'AES-256-GCM 零知識金庫',
-                    title: '📊 資安威脅情資監控與 IP 查詢平台（本系統 v2.3.8）',
+                    title: '📊 資安威脅情資監控與 IP 查詢平台（本系統 v2.5.0）',
                     subtitle: '唯讀同步、管線健康度監控、全庫 *.txt 與 10 日歷史查詢',
                     scheduleOrRole: 'ETag 條件式快取 + SHA 版本鎖定 + 密文傳輸',
                     summary:
@@ -1842,7 +1842,7 @@ export default function ThreatDefenseDashboardPage() {
                         className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-sky-50 border border-sky-300 text-slate-800 font-extrabold text-xs flex items-center justify-between cursor-pointer shadow-sm transition-all"
                       >
                         <span>
-                          📋 {showTechDeepDive ? '收合' : '展開'}完整底層技術規格表（雙儲存庫對照表、`LongTerm v1.0.1` 環境變數與檔案標頭範例）
+                          📋 {showTechDeepDive ? '收合' : '展開'}完整底層技術規格表（雙儲存庫對照表、`LongTerm v1.0.2` 環境變數與檔案標頭範例）
                         </span>
                         <span className="font-mono text-sky-700">
                           {showTechDeepDive ? '▲ 點擊收合細節' : '▼ 點擊展開完整表格'}
@@ -1885,7 +1885,7 @@ export default function ThreatDefenseDashboardPage() {
                                       自動化 Python 程式碼與驗證測試開發庫
                                     </td>
                                     <td className="p-2.5 text-slate-300">
-                                      Python 主程式（<code>v4.5</code>、<code>longterm v1.0.1</code>、<code>v2.1</code>）、共用模組（<code>ncloud_feed_utils.py</code>）、IP 歷史查詢工具（<code>query_ip_history.py</code>）、單元測試（<code>tests/</code>）與自動化驗證腳本
+                                      Python 主程式（<code>v4.5</code>、<code>longterm v1.0.2</code>、<code>v2.1</code>）、共用模組（<code>ncloud_feed_utils.py</code>）、IP 歷史查詢工具（<code>query_ip_history.py</code>）、單元測試（<code>tests/</code>）與自動化驗證腳本
                                     </td>
                                   </tr>
                                 </tbody>
@@ -1896,7 +1896,7 @@ export default function ThreatDefenseDashboardPage() {
                           {/* LongTerm Env Vars & State Files Table */}
                           <div className="space-y-2">
                             <h3 className="text-sm font-bold text-white">
-                              🆕 `LongTerm v1.0.1` 關鍵環境變數與狀態紀錄檔規格
+                              🆕 `LongTerm v1.0.2` 關鍵環境變數與狀態紀錄檔規格
                             </h3>
                             <div className="overflow-x-auto">
                               <table className="w-full text-left border-collapse text-xs">
@@ -2678,7 +2678,7 @@ export default function ThreatDefenseDashboardPage() {
                   <br />• <code>郵件閘道威脅封鎖引擎 (v2.1)</code>：每 10 分鐘執行 1 次 = <strong>144 次/日</strong>
                   <br />• <code>外部聯防情資同步引擎 (v2.1)</code>：每 10 分鐘執行 1 次 = <strong>144 次/日</strong>
                   <br />• <code>骨幹流量即時感知引擎 (v4.5)</code>：每 10 分鐘執行 1 次 = <strong>144 次/日</strong>
-                  <br />• <code>長期累犯與全球黑名單引擎 (v1.0.1)</code>：每 3 小時執行 1 次 = <strong>8 次/日</strong>
+                  <br />• <code>長期累犯與全球黑名單引擎 (v1.0.2)</code>：每 3 小時執行 1 次 = <strong>8 次/日</strong>
                   <br />合計每日自動巡檢 <code>144 × 3 + 8 = 440</code> 次（僅在清單內容有實質異動時才會產生版本提交）。
                 </p>
               </div>
