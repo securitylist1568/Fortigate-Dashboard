@@ -1319,12 +1319,12 @@ export default function ThreatDefenseDashboardPage() {
                   },
                   script_longterm: {
                     layer: '第一層：自動化排程主機（Fortigate-Dev）',
-                    badge: 'Python v1.0.1 · 每 3 小時',
+                    badge: 'Python v1.0.2 · 每 3 小時',
                     title: '🛡️ ncloud_longterm_block_v1_0.py',
-                    subtitle: '跨日重複累犯 ∪ AbuseIPDB 全球高信賴長期黑名單產生器',
+                    subtitle: 'Top-N 跨日重複累犯 ∪ AbuseIPDB 全球高信賴長期黑名單產生器',
                     scheduleOrRole: 'Crontab: 8 */3 * * *（每 3 小時於 08 分執行，每日 8 次）',
                     summary:
-                      '將「過去 10 天內跨 ≥3 個不同日曆日重複出現之攻擊 IP」與「AbuseIPDB 100% 信心度全球黑名單」取聯集，實施 30 天 TTL 長期封鎖與自動退場。',
+                      '將「過去 10 天內跨 ≥3 個不同日曆日出現於 Top-N 5 份來源攻擊清單之 IP」與「AbuseIPDB 100% 信心度全球黑名單」取聯集，實施 30 天 TTL 長期封鎖與自動退場。',
                     files: ['g-BLACK_IP_AutoLongTerm-v1.txt'],
                     techSpecs: [
                       '狀態先存後推：於 Git 推送前先行安全完整寫入 longterm_state_v1_0.json 與 CSV 統計',

@@ -48,7 +48,7 @@ export const SCRIPT_SCHEDULES: ScriptScheduleConfig[] = [
   {
     id: 'longterm',
     name: '長期累犯與全球黑名單引擎',
-    version: 'v1.0.1',
+    version: 'v1.0.2',
     cronExpression: '8 */3 * * *',
     runsPerDay: 8,
     intervalMinutes: 180,
